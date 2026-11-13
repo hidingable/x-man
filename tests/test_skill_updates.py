@@ -150,6 +150,8 @@ class ScanTests(unittest.TestCase):
     def test_all_sources_share_repository_ref_requests(self):
         sources = monitor.load_sources(ROOT)
         self.assertEqual(len(list((ROOT / "governance" / "sources").glob("*.json"))), len(sources))
+        if not sources:
+            self.skipTest("仓库里没有登记外部来源")
         grouped = {}
         for item in sources:
             files = grouped.setdefault((item["repo"], item["ref"]), {})

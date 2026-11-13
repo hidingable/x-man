@@ -49,7 +49,7 @@ metadata:
 - merge、rebase 或 cherry-pick 卡在冲突上 → `/resolving-merge-conflicts`
 - 写 README、教程、接口文档 → `/technical-writing`
 - 只读扫描架构，找重构机会 → `/improve-codebase-architecture`
-- 部署到服务器 → `/server-deploy`；部署到 Cloudflare → `/cloudflare-deploy`；登录服务器排障 → `/server-ops-safe`
+- 部署到服务器 → `/server-deploy`；登录服务器排障 → `/server-ops-safe`
 
 ## 收尾（按需）
 

@@ -1,7 +1,6 @@
 skill,status,source,note,source_type,source_key,type,release
 algorithmic-art,deprecated,github,已移除：创意类外部 skill，不属于团队流程；需要时从 anthropics/skills 重新引入（原外部来源 algorithmic-art）,local,,deprecated,
 apple-ui-motion-system,team-shared,codex,Apple 风格视觉与 motion 系统，适合跨项目统一 UI polish、转场和状态反馈,local,,skill,
-archify,experimental,github,交互式架构与流程图，来源 tt-a1i/archify v3.2.0；离线 HTML、JSON IR、路径追踪与校验,external,archify,skill,
 architect,experimental,local,技术架构：先定调用点长什么样再倒推签名，并行出候选+交叉评判选优，骨架被证伪就整个重来,local,,skill,
 ascii-card,team-shared,local,生成中英文混排严格对齐的 ASCII 卡片图与线框图，用 wcwidth 或 unicodedata 计算显示列宽，解决 CJK 占 2 列导致右边框错位的问题,local,,skill,release-dist
 ask-xman,experimental,local,描述处境，推荐该用哪个 skill，只推荐不执行,local,,skill,
@@ -9,20 +8,15 @@ brainstorm,team-shared,codex,理解真实问题后充分发散不同方向，主
 brand-guidelines,deprecated,github,已移除：创意类外部 skill，不属于团队流程；需要时从 anthropics/skills 重新引入（原外部来源 brand-guidelines）,local,,deprecated,
 bug-fix,team-shared,codex,稳定复现问题，沿完整链路确认根因，正确修复并验证回归,local,,skill,release-dist
 canvas-design,deprecated,github,已移除：创意类外部 skill，不属于团队流程；需要时从 anthropics/skills 重新引入（原外部来源 canvas-design）,local,,deprecated,
-claude-api,team-shared,github,Claude API 官方技能；采纳 anthropics/skills dbd4588；保留供应商触发范围与既有授权适配,external,claude-api,skill,
-cloudflare-deploy,experimental,codex,平台特定能力，适用团队范围需视基础设施而定,local,,skill,
 code-archaeology,experimental,local,读懂既有代码：how 追运行时怎么走，why 追当初为什么这么写；结论必须带位置，查不到就说查不到,local,,skill,
 code-by-plan,team-shared,codex,按计划可靠实施，依据代码事实处理必要偏离并逐项验证结果,local,,skill,release-dist
-codex-security,experimental,github,OpenAI Codex Security 防御性代码审查套件；SDK 0.10.0 的 plugin 0.1.95，含源码审查/威胁建模/漏洞分诊与修复，按发行包迁移,external,codex-security,skill,
 context-sync,deprecated,codex,已移除：恢复现场由 xman-flow 的现状扫描承担，识别过期记录的判据并入其 special-scenarios,local,,deprecated,
 create-plan,team-shared,codex,深入真实代码生成完整、可执行、可验证的实施计划；也负责按新事实更新现有计划,local,,skill,release-dist
 design,team-shared,codex,把信息结构、操作流程、反馈和边界状态设计清楚,local,,skill,release-dist
 doc,deprecated,codex,已移除：Word 文档统一用 docx,local,,deprecated,
 doc-coauthoring,deprecated,github,已移除：普通文档共创直接交给模型，正式文档用 prd / technical-writing（原外部来源 doc-coauthoring）,local,,deprecated,
-docx,team-shared,github,Word 文档读取、创建、编辑和渲染检查，接替 doc；来源 anthropics/skills,external,docx,skill,
 domain-terms,experimental,local,业务术语含义有冲突或含糊时核对并记录到项目上下文,local,,skill,release-dist
 explain,experimental,local,把问题、需求、文档、代码、故障或别人转来的 AI 产物讲到人能看懂：结合项目上下文核对事实并标来源，需要时画图,local,,skill,
-find-skills,team-shared,codex,帮助发现和安装 skill，适合团队共享,local,,skill,
 first-principles,deprecated,codex,已拆入 bug-fix 与 req-analyze 的 references/first-principles.md；领域研究那一档未保留,local,,deprecated,
 frontend-design,deprecated,github,已移除：界面类设计参考统一用 ui-ux-pro-max；需要时从 anthropics/skills 重新引入（原外部来源 frontend-design）,local,,deprecated,
 git-commit,team-shared,codex,根据实际改动目的拆分提交并生成清晰、可追溯的提交信息；也能写 PR / MR 描述,local,,skill,release-dist
@@ -33,18 +27,12 @@ harness,team-shared,codex,对照目标检查实现完整性、回归风险和范
 hotel-search,experimental,codex,酒店检索技能，实时性强，保留为本地维护,local,,skill,
 html-view,team-shared,local,把 .ai-configs 里给人看的 md 产物渲染成同名离线 HTML,local,,skill,
 human-speak,experimental,local,没看懂刚才的回复时，用直白的话重讲,local,,skill,release-dist
-hv-analysis,team-shared,github,横纵分析法深度研究（产品/公司/概念/人物/领域），双轴叙事+竞争对比，输出 markdown 研究报告,external,hv-analysis,skill,
-i-have-adhd,experimental,github,ADHD 友好输出风格 skill，来源 ayghri/i-have-adhd，已全量中文化并补中英双语触发词,external,i-have-adhd,skill,
 improve-codebase-architecture,experimental,local,只读扫描实际架构摩擦，生成带证据与验证建议的离线HTML报告,local,,skill,
 init-context,deprecated,codex,已迁移为 xman context init，不再作为独立 skill,local,,deprecated,
 internal-comms,deprecated,github,已移除：模板偏 Anthropic 内部格式；向上汇报用 xiangshang-huibao（原外部来源 internal-comms）,local,,deprecated,
 knowledge-sync,deprecated,local,已并入 neat-freak（两者职责重复，统一用 neat-freak 的名字）,local,,deprecated,
-mcp-builder,team-shared,github,MCP 服务构建能力，适合研发团队共享,external,mcp-builder,skill,
 mistake-evolution,deprecated,codex,已并入 reflect（references/mistake-record.md 与 scripts/）,local,,deprecated,
 neat-freak,team-shared,local,任务收尾后把项目文档、规则文件、.ai-configs 产物和获准记忆同步到代码现状，清点会话残留,local,,skill,release-dist
-openai-docs,team-shared,codex,官方文档检索与引用能力，适合团队共享,local,,skill,
-pdf,experimental,github,PDF 处理技能，来源 anthropics/skills，先作为外部能力引入观察,external,pdf,skill,
-pptx,experimental,github,演示文稿处理技能，来源 anthropics/skills，先作为外部能力引入观察,external,pptx,skill,
 prd,team-shared,codex,把角色、行为、规则、状态、异常和验收写成完整产品约定；也负责把需求变化同步进现有 PRD,local,,skill,release-dist
 project-workflow,deprecated,codex,已移除：各阶段早已拆成独立 skill，初始化改由 xman context init 承担,local,,deprecated,
 pua,deprecated,codex,已移除：持续排查与取证已是模型默认行为，且会被隐式触发（原外部来源 pua）,local,,deprecated,
@@ -55,7 +43,6 @@ resolving-merge-conflicts,experimental,local,按三方证据消解Git冲突，�
 review,team-shared,codex,按实际改动范围查找高置信缺陷，只报告有证据和明确影响的问题,local,,skill,release-dist
 server-deploy,team-shared,codex,通用服务器部署流程，可作为团队共享基线,local,,skill,
 server-ops-safe,team-shared,codex,安全受控运维流程，具备团队共享价值,local,,skill,
-skill-creator,team-shared,github,创建和维护 skill 的元能力，适合团队共享,external,skill-creator,skill,
 slack-gif-creator,deprecated,github,已移除：创意类外部 skill，不属于团队流程；需要时从 anthropics/skills 重新引入（原外部来源 slack-gif-creator）,local,,deprecated,
 spec-query,experimental,local,按目标路径只读匹配项目 Spec 并加载规范事实源，供计划与审查防遗漏使用,local,,skill,release-dist
 tdd-guard,team-shared,codex,用先失败、再通过、后整理的测试循环保护目标行为,local,,skill,release-dist
@@ -63,17 +50,12 @@ technical-writing,experimental,local,开发者文档：教程/指南/参考/说�
 theme-factory,deprecated,github,已移除：创意类外部 skill，不属于团队流程；需要时从 anthropics/skills 重新引入（原外部来源 theme-factory）,local,,deprecated,
 to-questionnaire,experimental,local,将他人掌握的事实与决策整理为可回收的澄清问卷，默认只生成不发送,local,,skill,release-dist
 travel-planner,experimental,codex,中文用户旅行行程规划 skill，编排子 agent 做签证/速览/景点/餐饮/预约调研，输出 HTML+MD+PDF，依赖 web-access 与 hotel-search,local,,skill,
-ui-ux-pro-max,team-shared,github,UI/UX 设计知识引擎；v2.15.0 加上游 6ae86f6 快照，80 可搜索风格/192 配色/74 字体配对/120 UX 规则，含输入法回车和 RTL 指引,external,ui-ux-pro-max,skill,
 update-plan,deprecated,codex,已并入 create-plan 的更新模式（references/update-plan.md）,local,,deprecated,
 update-prd,deprecated,codex,已并入 prd 的更新模式（references/update-prd.md）,local,,deprecated,
-vercel-react-best-practices,team-shared,codex,前端最佳实践指导，适合团队共享,local,,skill,
 verification,deprecated,codex,已并入 harness 的完成声明核对（references/claim-check.md）,local,,deprecated,
-web-access,team-shared,github,联网浏览与站点交互能力；采纳 eze-is/web-access v2.6.0；保留宿主工具选择与本地探针,external,web-access,skill,
 web-artifacts-builder,deprecated,github,已移除：创意类外部 skill，不属于团队流程；需要时从 anthropics/skills 重新引入（原外部来源 web-artifacts-builder）,local,,deprecated,
-webapp-testing,team-shared,github,Web 应用测试能力，适合团队共享,external,webapp-testing,skill,
 wizard,experimental,local,生成给人执行的分步Bash向导，提供dry-run、隐藏输入及可验证的幂等写入,local,,skill,release-dist
 workflow-memory,deprecated,codex,已移除：流程画像没有读取方；长期规则改记在 .ai-configs/evolution/patterns/,local,,deprecated,
 writing-for-agents,experimental,local,给 agent 读的文档怎么写：删无效句、正向写法、完成判据、按使用频率分层,local,,skill,release-dist
 xiangshang-huibao,experimental,local,向上汇报的起草、体检与改写，先在真实汇报场景验证,local,,skill,
-xlsx,experimental,github,表格处理技能，来源 anthropics/skills，先作为外部能力引入观察,external,xlsx,skill,
 xman-flow,experimental,codex,按任务需要选择开发阶段，负责 skill 唤醒、产物传递、用户确认和流程收口,local,,agent,

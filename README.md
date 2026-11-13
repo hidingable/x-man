@@ -4,14 +4,14 @@
 
 > **English**: x-mansion is a single home for your AI agent skills. One `xman` command installs a curated set of skills (requirements, PRD, planning, coding, review, docs, design, deployment) into Claude Code, Codex, Cursor and Gemini CLI through symlinks, so one edit takes effect everywhere. Skill content is mostly written in Chinese.
 
-仓库里有 50 多个 skill：大部分是本仓自己写的，另有一部分来自 Anthropic、OpenAI、Vercel 等开源项目，来源和许可证见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+仓库里有 30 多个 skill，都是本仓自己写的。文档处理（docx / pdf / pptx / xlsx）、联网浏览（web-access）这类第三方 skill 不随仓库分发，需要时从各自的上游安装。
 
 ## 它能帮你做什么
 
 - **研发流程**：从想清楚需求、写 PRD、写计划、照计划写代码，到审查、验收、提交，每一步都有对应的 skill，也可以交给 `xman-flow` 一次串起来。
 - **不说空话**：说「完成了」要附本次运行的证据；审查只报有证据、会造成业务后果的问题。
 - **不自作主张**：写文档、改代码、动 git、部署这类动作，只有你输入命令才会开始。
-- **其他常用能力**：Word / PDF / PPT / Excel 处理、HTML 设计稿、服务器部署和排障、旅行规划、向上汇报等。
+- **其他常用能力**：服务器部署和排障、旅行规划、向上汇报等。
 
 ## 快速开始
 
@@ -60,9 +60,9 @@ cd x-man
 | 研发流程 | brainstorm、req-analyze、prd、design、architect、create-plan、code-by-plan、git-commit |
 | 质量与验证 | review、bug-fix、harness、tdd-guard、spec-query、code-archaeology |
 | 收尾与记忆 | reflect、neat-freak |
-| 设计与原型 | ui-ux-pro-max、apple-ui-motion-system |
-| 文档与沟通 | docx、pdf、pptx、xlsx、technical-writing、xiangshang-huibao、to-questionnaire |
-| 工程与部署 | server-deploy、server-ops-safe、cloudflare-deploy、resolving-merge-conflicts、mcp-builder |
+| 设计与原型 | apple-ui-motion-system |
+| 文档与沟通 | technical-writing、xiangshang-huibao、to-questionnaire |
+| 工程与部署 | server-deploy、server-ops-safe、resolving-merge-conflicts |
 | 小工具 | ask-xman、handoff、human-speak、explain、html-view、guardrails、ascii-card、writing-for-agents、domain-terms、wizard |
 
 每个 skill 有一个状态：
@@ -118,8 +118,7 @@ plugin 打包 registry 里全部未废弃的 skill 和 agent。
   ```
 
 - 改动影响 skill 行为时，用 `scripts/eval-run.py` 跑行为对照。
-- 外部来源的 skill（docx、pdf、web-access 等）用 `./xman update` 从来源同步，不直接改正文。
 
 ## 许可证
 
-本项目自有内容使用 [MIT](LICENSE)。第三方 skill 按各自的许可证分发，完整清单见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)，许可证全文在各 skill 目录里。
+本项目使用 [MIT](LICENSE) 许可证。

@@ -106,15 +106,13 @@ cd /path/to/old-project
 
 为了控制 AI 工具启动时的上下文占用，建议**全局只装跨项目高频的工作流 skill**，特化能力（设计、文档、服务器、公司内网）按项目按需安装到项目级 skill 目录。
 
-### 全局基线（16 个 skill）
+### 全局基线（10 个 skill）
 
 ```bash
 ./xman install claude \
   --skill brainstorm --skill req-analyze --skill prd --skill design \
   --skill create-plan --skill code-by-plan --skill bug-fix --skill review \
-  --skill git-commit --skill find-skills --skill skill-creator \
-  --skill web-access --skill reflect --skill docx \
-  --skill claude-api --skill ui-ux-pro-max \
+  --skill git-commit --skill reflect \
   --clean
 ```
 
@@ -126,17 +124,13 @@ cd /path/to/old-project
 
 ```bash
 # 前端项目
-./xman install claude --project ~/path/frontend-app --plugin design \
-  --skill vercel-react-best-practices --skill webapp-testing --clean
+./xman install claude --project ~/path/frontend-app --plugin design --clean
 
 # 后端 / 全栈
 ./xman install claude --project ~/path/api-app --plugin engineering --clean
 
 # 服务器运维项目（按需挑单个）
 ./xman install claude --project ~/path/ops --skill server-ops-safe
-
-# 文档处理项目
-./xman install claude --project ~/path/docs --skill pdf --skill docx --skill xlsx --skill pptx
 ```
 
 ### 可用 plugin 分组
@@ -174,7 +168,7 @@ cd /path/to/old-project
 ./xman validate --fix        # 自动修复（team 软链、CSV 排序）
 ./xman check-team            # 只检查 team 软链一致性
 ./xman audit                 # 对账本机与仓库
-./xman update --skill docx    # 预览单个 external skill 的更新
+./xman update --skill <名称>  # 预览单个 external skill 的更新
 ./xman update --apply        # 应用全部 external skill 更新
 ```
 
