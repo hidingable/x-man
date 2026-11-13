@@ -1,0 +1,5 @@
+interface:
+  display_name: "该用哪个命令"
+  short_description: "描述处境，推荐该用哪个 skill"
+policy:
+  allow_implicit_invocation: false

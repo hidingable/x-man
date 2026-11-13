@@ -1,0 +1,53 @@
+{
+  "key": "web-access",
+  "kind": "git",
+  "repo": "https://github.com/eze-is/web-access.git",
+  "ref": "main",
+  "mappings": [
+    {
+      "type": "file",
+      "from": "SKILL.md",
+      "to": "skills/web-access/UPSTREAM.md",
+      "optional": false
+    },
+    {
+      "type": "dir",
+      "from": "assets",
+      "to": "skills/web-access/assets",
+      "optional": true
+    },
+    {
+      "type": "dir",
+      "from": "references",
+      "to": "skills/web-access/references",
+      "optional": true,
+      "exclude": [
+        "site-patterns/**"
+      ]
+    },
+    {
+      "type": "dir",
+      "from": "scripts",
+      "to": "skills/web-access/scripts",
+      "optional": true,
+      "exclude": [
+        "xman-*.mjs"
+      ]
+    },
+    {
+      "type": "dir",
+      "from": "data",
+      "to": "skills/web-access/data",
+      "optional": true
+    },
+    {
+      "type": "dir",
+      "from": "templates",
+      "to": "skills/web-access/templates",
+      "optional": false
+    }
+  ],
+  "note": "采纳上游 d173a75978ceb2c63fa0b27f7408cd2bf7fe4310（v2.6.0），继续跟踪 main。上游 SKILL.md 镜像到 UPSTREAM.md；本地 SKILL.md 保留按任务选择宿主工具/连接器、仅 CDP 分支检查依赖、实际加载路径解析和用户授权边界，升级时人工 reconcile。scripts/ 下 xman-*.mjs 为本仓验证探针，两侧排除并保留；templates 为 check-deps 和测试必需配置模板。用户配置/站点经验迁移到 ~/.web-access/，升级源码不操作真实浏览器、Proxy 或用户数据。 references/site-patterns/** 是旧用户经验，排除同步删除，留给迁移模块复制。 references/migration-2.6.md 的备份示例改为实际加载的 skill 目录，保留迁移语义并移除宿主专属安装路径；同步后人工保留此资料适配。",
+  "revision": "d173a75978ceb2c63fa0b27f7408cd2bf7fe4310",
+  "version": "2.6.0"
+}

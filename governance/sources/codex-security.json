@@ -1,0 +1,115 @@
+{
+  "key": "codex-security",
+  "kind": "git",
+  "repo": "https://github.com/openai/codex-security.git",
+  "ref": "main",
+  "release_tag": "npm-v0.10.0",
+  "release_asset": "openai-codex-security-0.10.0.tgz",
+  "release_sha256": "8e33eb2907eec78fc8c49ccbe0435282e553fc3d3623f56024bce55acd31a16f",
+  "note": "从发行包的 package/_bundled_plugin 引入 plugin 0.1.95，保留本地入口和防御性约束。上游公开源码位于 plugins/codex-security，MCP 还依赖 SDK 源码与打包脚本。映射用于巡检与只读预览，manual-release 需从已校验的发行包迁移 MCP、native 依赖和本地路由。包内插件版本以 skills/codex-security/.codex-plugin/plugin.json 为准。",
+  "mappings": [
+    {
+      "type": "dir",
+      "from": "plugins/codex-security/skills",
+      "to": "skills/codex-security/skills",
+      "optional": false
+    },
+    {
+      "type": "dir",
+      "from": "plugins/codex-security/references",
+      "to": "skills/codex-security/references",
+      "optional": false
+    },
+    {
+      "type": "dir",
+      "from": "plugins/codex-security/scripts",
+      "to": "skills/codex-security/scripts",
+      "optional": false
+    },
+    {
+      "type": "dir",
+      "from": "plugins/codex-security/schemas",
+      "to": "skills/codex-security/schemas",
+      "optional": false
+    },
+    {
+      "type": "dir",
+      "from": "plugins/codex-security/examples",
+      "to": "skills/codex-security/examples",
+      "optional": false
+    },
+    {
+      "type": "dir",
+      "from": "plugins/codex-security/assets",
+      "to": "skills/codex-security/assets",
+      "optional": false
+    },
+    {
+      "type": "dir",
+      "from": "plugins/codex-security/shared",
+      "to": "skills/codex-security/shared",
+      "optional": false
+    },
+    {
+      "type": "dir",
+      "from": "plugins/codex-security/mcp-app",
+      "to": "skills/codex-security/mcp-app",
+      "optional": false
+    },
+    {
+      "type": "dir",
+      "from": "plugins/codex-security/native",
+      "to": "skills/codex-security/native",
+      "optional": false
+    },
+    {
+      "type": "dir",
+      "from": "plugins/codex-security/.codex-plugin",
+      "to": "skills/codex-security/.codex-plugin",
+      "optional": false
+    },
+    {
+      "type": "file",
+      "from": "plugins/codex-security/.app.json",
+      "to": "skills/codex-security/.app.json",
+      "optional": false
+    },
+    {
+      "type": "file",
+      "from": "plugins/codex-security/.mcp.json",
+      "to": "skills/codex-security/.mcp.json",
+      "optional": false
+    },
+    {
+      "type": "file",
+      "from": "plugins/codex-security/plugin-files.json",
+      "to": "skills/codex-security/plugin-files.json",
+      "optional": false
+    },
+    {
+      "type": "dir",
+      "from": "sdk/typescript/src",
+      "to": "skills/codex-security/upstream-sdk/src",
+      "optional": false
+    },
+    {
+      "type": "file",
+      "from": "sdk/typescript/scripts/build-plugin.mjs",
+      "to": "skills/codex-security/upstream-sdk/build-plugin.mjs",
+      "optional": false
+    },
+    {
+      "type": "file",
+      "from": "sdk/typescript/package.json",
+      "to": "skills/codex-security/upstream-sdk/package.json",
+      "optional": false
+    },
+    {
+      "type": "file",
+      "from": "LICENSE",
+      "to": "skills/codex-security/LICENSE",
+      "optional": false
+    }
+  ],
+  "update_policy": "manual-release"
+}

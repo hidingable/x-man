@@ -1,0 +1,5 @@
+interface:
+  display_name: "按计划实施"
+  short_description: "按编码计划或明确步骤修改代码，并用本次验证证明结果"
+policy:
+  allow_implicit_invocation: false

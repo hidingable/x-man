@@ -1,0 +1,5 @@
+interface:
+  display_name: "流程复盘"
+  short_description: "任务结束后复盘流程问题，或记下一次具体失误并提炼成规则"
+policy:
+  allow_implicit_invocation: false

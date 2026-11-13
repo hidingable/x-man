@@ -1,0 +1,5 @@
+interface:
+  display_name: "技术架构"
+  short_description: "写代码前先定接口、类型和模块边界：并行出几个候选设计，评判后按选中的骨架实现"
+policy:
+  allow_implicit_invocation: false

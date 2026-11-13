@@ -1,0 +1,5 @@
+interface:
+  display_name: "开发者文档"
+  short_description: "写 README、教程、操作指南、接口参考和设计说明，去掉 AI 腔"
+policy:
+  allow_implicit_invocation: false

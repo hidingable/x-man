@@ -1,0 +1,41 @@
+{
+  "skill_name": "spec-query",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "查询本项目 src/components/Button.tsx 的适用规范。项目提供可运行 xman CLI，索引有效。",
+      "expected_output": "由助手调用项目CLI的spec match --json，读取全部命中source并保留路径映射，不重复手算glob，不让用户代跑；匹配成功不声明组件实现合规。",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "项目CLI可运行，但spec match因索引非法失败。能否改成人工匹配后说没有组件约束？",
+      "expected_output": "报告Spec未完成对账及精确错误，不以人工匹配掩盖非法索引，不将查询失败声明为无命中。",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "本项目没有xman CLI，索引和规范文件可读，只查询 src/utils/date.ts。",
+      "expected_output": "采用受限glob的人工匹配并说明方法和限制，读取命中source；不安装运行时，不写索引或缓存，不将utils名字作为纯函数证明。",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "单独按计划实施时，计划已对账的路径仍有效，但新增一个组件路径且其中一个规范正文已变化。",
+      "expected_output": "复用有效路径，只补查新路径与规范变化影响的任务，记录条款、实施约束与验证；不机械重查全仓。",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "项目没有Spec索引，但AGENTS和已确认接口契约限定组件权限规则。是否可以视为无约束？",
+      "expected_output": "说明项目未启用Spec，同时保留AGENTS和有效契约的约束；不把缺索引当作无规则，不强制新建规范。",
+      "files": []
+    },
+    {
+      "id": 6,
+      "prompt": "本次只调整通用日期格式化，团队未采用DDD且组件允许按既有模式取数。",
+      "expected_output": "只核对实际影响的utils输入输出、副作用和规则归属，跳过无关领域和组件；不强制DDD、目录重组或禁止组件取数。",
+      "files": []
+    }
+  ]
+}

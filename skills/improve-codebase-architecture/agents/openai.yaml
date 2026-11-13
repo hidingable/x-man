@@ -1,0 +1,5 @@
+interface:
+  display_name: "架构体检"
+  short_description: "只读扫描模块或变更热点，找出有证据的架构改善候选，生成 HTML 报告"
+policy:
+  allow_implicit_invocation: false

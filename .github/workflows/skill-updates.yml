@@ -1,0 +1,101 @@
+name: External skill updates
+
+on:
+  schedule:
+    # 09:17 Asia/Shanghai / Asia/Taipei; avoid the top-of-hour queue.
+    - cron: "17 1 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "只读检查，不创建或修改汇总 Issue"
+        type: boolean
+        default: true
+        required: true
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: external-skill-update-monitor
+  cancel-in-progress: false
+
+jobs:
+  check-upstreams:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out monitor and source manifests
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+
+      - name: Test monitor without network access
+        run: python3 -B -m unittest discover -s tests -p 'test_skill_updates.py' -v
+
+      - name: Check relevant upstream changes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SKILL_UPDATE_NOTIFY: ${{ vars.SKILL_UPDATE_NOTIFY }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=(--repo "$GITHUB_REPOSITORY" --json --output "$RUNNER_TEMP/skill-update-report.json")
+          if [[ "$DRY_RUN" != "true" ]]; then
+            if [[ -z "$SKILL_UPDATE_NOTIFY" ]]; then
+              echo "::error::Set repository variable SKILL_UPDATE_NOTIFY to notification recipients (comma-separated GitHub logins)."
+              exit 1
+            fi
+            args+=(--publish)
+          fi
+          if python3 scripts/check-skill-updates.py "${args[@]}"; then
+            exit 0
+          fi
+          # Partial source failures remain visible in the Issue and annotations.
+          # Fatal configuration/Issue writes or a completely failed scan stay red.
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          report = json.loads((Path(os.environ["RUNNER_TEMP"]) / "skill-update-report.json").read_text(encoding="utf-8"))
+          failures = report.get("errors", [])
+          if report.get("fatal_error") or not failures or len(failures) >= report.get("source_count", 0):
+              raise SystemExit(1)
+          if report.get("mode") == "publish" and not report.get("issue_number"):
+              raise SystemExit(1)
+          print(f"::warning::{len(failures)} upstream source(s) could not be checked; their successful baselines were preserved. See the summary Issue or the report.")
+          PY
+
+      - name: Summarize this check
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          report_path = Path(os.environ["RUNNER_TEMP"]) / "skill-update-report.json"
+          with Path(os.environ["GITHUB_STEP_SUMMARY"]).open("a", encoding="utf-8") as summary:
+              summary.write("## 外部 Skill 更新巡检\n\n")
+              if report_path.exists():
+                  report = json.loads(report_path.read_text(encoding="utf-8"))
+                  summary.write(f"- 模式：{report.get('mode', '未完成')}\n")
+                  summary.write(f"- 来源：{report.get('source_count', 0)}\n")
+                  summary.write(f"- 首次建立基线：{len(report.get('baselined', []))}\n")
+                  summary.write(f"- 检测事件：{len(report.get('events', []))}\n")
+                  summary.write(f"- 检查错误：{len(report.get('errors', []))}\n")
+                  if report.get("issue_number"):
+                      summary.write(f"- 汇总 Issue：#{report['issue_number']}\n")
+                  if report.get("fatal_error"):
+                      summary.write("- 本次未完成，详见检查日志。\n")
+              else:
+                  summary.write("未产生报告，请检查测试、权限和通知账号配置。\n")
+          PY

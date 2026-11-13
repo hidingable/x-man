@@ -1,0 +1,14 @@
+{
+  "width": 72,
+  "rows": [
+    { "type": "text", "text": "入职红线提醒" },
+    { "type": "text", "text": "入职红线提醒 - 员工姓名" },
+    { "type": "text", "text": "入职资料核验发现红线问题，请确认处理方式" },
+    { "type": "divider" },
+    { "type": "row", "text": "红线资料名称", "buttons": ["查看"] },
+    { "type": "divider" },
+    { "type": "row", "text": "红线资料名称", "buttons": ["查看"] },
+    { "type": "divider" },
+    { "type": "buttons", "buttons": ["按建议终止入职", "继续入职"], "align": "between" }
+  ]
+}

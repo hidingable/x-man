@@ -1,0 +1,5 @@
+interface:
+  display_name: "知识收尾"
+  short_description: "同步项目文档、规则和记忆，完成收尾"
+policy:
+  allow_implicit_invocation: false

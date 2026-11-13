@@ -1,0 +1,5 @@
+interface:
+  display_name: "脑暴"
+  short_description: "方向还没想清楚时，发散几个真正不同的方向，再收敛到一个"
+policy:
+  allow_implicit_invocation: false

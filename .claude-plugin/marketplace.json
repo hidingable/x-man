@@ -1,0 +1,15 @@
+{
+  "name": "x-mansion-lab",
+  "owner": {
+    "name": "x-mansion",
+    "url": "https://github.com/hidingable"
+  },
+  "description": "Skill 研发母仓，打包 registry 中全部未废弃的 skill",
+  "plugins": [
+    {
+      "name": "x-mansion",
+      "source": "./dist/plugin/x-mansion",
+      "description": "全部 skill 与 agent。skill 名带 x-mansion: 前缀"
+    }
+  ]
+}

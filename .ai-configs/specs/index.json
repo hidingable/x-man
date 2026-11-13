@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "specs": [
+    {
+      "id": "artifact-task-contract",
+      "source": "context/conventions.md",
+      "description": "Task、Ad-hoc、产物路径和表达命名契约",
+      "paths": [
+        "context/README.md",
+        "context/conventions.md",
+        "context/naming-contract.json",
+        "context/schema/**",
+        "context/templates/project-context-template.md",
+        "scripts/context-init.sh",
+        "scripts/task.sh",
+        "scripts/journal.sh",
+        "scripts/check-conventions.py",
+        "tests/test_conventions_contract.py",
+        "scripts/check-prose.py",
+        "agents/xman-flow.md",
+        "agents/xman-flow/**"
+      ]
+    },
+    {
+      "id": "governance-contract",
+      "source": "governance/README.md",
+      "description": "Registry、外部来源、团队集合和发布治理契约",
+      "paths": [
+        "governance/**",
+        "scripts/source-manager.py",
+        "scripts/registry_scope.py",
+        "scripts/publish-*.sh",
+        "scripts/bootstrap-repo.sh",
+        "scripts/check-team-links.sh",
+        "scripts/list.sh",
+        "scripts/validate.sh",
+        "context/templates/published-skill-bundle-readme.md"
+      ]
+    },
+    {
+      "id": "platform-contract",
+      "source": "context/platforms.md",
+      "description": "Claude 和 Codex 平台安装路径与平台中立表达契约",
+      "paths": [
+        "context/platforms.md",
+        "scripts/doctor.sh",
+        "scripts/sync-codex-agent.py",
+        "scripts/sync-*.sh",
+        "scripts/spec.py",
+        "scripts/hooks/spec-pre-tool-use.py",
+        "tests/test_doctor.py"
+      ]
+    },
+    {
+      "id": "spec-system-contract",
+      "source": ".ai-configs/specs/README.md",
+      "description": "Spec 索引、匹配、写前门禁和本地运行态契约",
+      "paths": [
+        ".ai-configs/specs/**",
+        "README.md",
+        "xman",
+        "scripts/validate.sh",
+        "scripts/spec.py",
+        "scripts/spec_core.py",
+        "scripts/hooks/spec-pre-tool-use.py",
+        "context/templates/project-spec-readme.md",
+        "tests/test_spec_*.py"
+      ]
+    },
+    {
+      "id": "skill-agent-contract",
+      "source": "docs/SKILL-SPEC.md",
+      "description": "Skill 和 Agent 的目录、元数据、依赖与输出契约",
+      "paths": [
+        "skills/**/SKILL.md",
+        "agents/*.md",
+        "agents/*/**",
+        "scripts/build-plugin.sh",
+        "scripts/new-skill.sh",
+        "scripts/validate.sh"
+      ]
+    },
+    {
+      "id": "engineering-handoff-contract",
+      "source": "context/conventions.md",
+      "description": "领域、设计、utils、组件的工程约束核对与决定来源、Spec交接要求",
+      "paths": [
+        "skills/req-analyze/**",
+        "skills/prd/**",
+        "skills/design/**",
+        "skills/create-plan/**",
+        "skills/code-by-plan/**",
+        "skills/review/**",
+        "skills/spec-query/**",
+        "docs/SKILL-SPEC.md",
+        "context/templates/project-engineering-spec-template.md"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{TITLE}}</title>
+<!--
+  travel-planner HTML 模板。
+  主流程读取本文件，把 {{...}} 占位符替换为实际数据后输出最终 HTML。
+
+  占位符约定（双花括号 = 单值，{{#each}} ... {{/each}} = 列表，{{#if}} = 条件块）：
+
+  顶部信息卡：
+    {{TITLE}}                    页面标题，如 "上海 → 东京 10 天行程"
+    {{DESTINATION}}              目的地
+    {{ORIGIN}}                   出发地
+    {{DATE_START}} {{DATE_END}}  绝对日期 YYYY-MM-DD
+    {{PARTY}}                    "2 大 1 小（6 岁）" 这类描述
+    {{STYLE}}                    风格（深度/打卡/主题等）
+    {{PACE}}                     节奏强度（特种兵/紧凑/标准/度假/休养）
+    {{TOTAL_BUDGET}}             总预算（含口径）— 仅当用户主动要求时填，否则隐藏整块
+    {{#if TOTAL_BUDGET}} ... {{/if}}
+    {{GENERATED_AT}}             生成时间 YYYY-MM-DD HH:mm
+
+  降级横幅（仅 cn-only / global-only 模式渲染）：
+    {{#if NETWORK_DOWNGRADE}} ... {{/if}}
+    {{DOWNGRADE_NOTE}}           "机票价格可能高 5-15%；小众目的地攻略覆盖度下降" 等说明
+
+  地图条件渲染：
+    {{MAP_PROVIDER}}             "amap" | "gmaps" | "none"
+    每个地点：{{LOCATION_NAME}} / {{MAP_URL}} / {{ADDRESS_TEXT}}
+
+  点评/攻略链接（每个地点都要有）：
+    {{REVIEW_DIANPING_URL}}      国内目的地：https://www.dianping.com/search/keyword/{cityId}/0_{name}
+    {{REVIEW_GMAPS_URL}}         海外目的地：https://www.google.com/maps/search/{name}+reviews
+    {{REVIEW_XHS_URL}}           小红书搜索：https://www.xiaohongshu.com/search_result?keyword={name}
+    主流程根据目的地是否国内来决定渲染哪个组合（国内 = 高德 + 大众点评 + 小红书；海外 = GMaps + GMaps Reviews + 小红书）
+
+  每日行程（列表）：
+    {{#each DAYS}}
+      {{DAY_INDEX}}              D1 / D2 ...
+      {{DAY_DATE}}                YYYY-MM-DD
+      {{DAY_THEME}}               一句话主题
+      {{DAY_WEATHER}}             "27°C / 32°C 多云"
+      {{#each ITEMS}}             一天内的活动表
+        {{TIME}} {{ACTIVITY}} {{LOCATION_NAME}} {{TRANSPORT}} {{NOTES}}
+      {{/each}}
+    {{/each}}
+
+  预算 breakdown（列表）：
+    {{#each BUDGET_ITEMS}}
+      {{CATEGORY}}                机票 / 住宿 / 餐饮 / 城市交通 / 景点门票 / 购物 / buffer
+      {{AMOUNT}}                  数字
+      {{NOTE}}                    口径说明
+    {{/each}}
+
+  速览卡片：
+    {{#if VISA}} ... {{/if}}      国内行程跳过
+    {{VISA_REQUIRED}} {{VISA_STAY}} {{VISA_LEAD_TIME}} {{VISA_SOURCE_URL}}
+    {{SAFETY_LEVEL}} {{SAFETY_NOTE}} {{SAFETY_SOURCE_URL}}
+    {{CURRENCY_CODE}} {{CURRENCY_RATE}} {{PAYMENT_HABIT}}
+    {{PLUG_TYPE}} {{VOLTAGE}} {{ADAPTER_NEEDED}}
+    {{SIM_RECOMMENDATION}}
+    {{EMERGENCY_LOCAL}} {{EMERGENCY_EMBASSY}}
+
+  常用药品/医院/急救用语卡：
+    {{#each MEDICATIONS}}{{NAME}} - {{PURPOSE}}{{/each}}
+    {{#each HOSPITALS}}{{HOSPITAL_NAME}} - {{HOSPITAL_ADDR}} - {{HOSPITAL_PHONE}}{{/each}}
+    {{#each EMERGENCY_PHRASES}}{{ZH}} / {{LOCAL}} / {{EN}}{{/each}}
+
+  来源附录（列表）：
+    {{#each SOURCES}}
+      {{SOURCE_TITLE}} {{SOURCE_URL}} {{SOURCE_DATE}}
+    {{/each}}
+-->
+<style>
+  :root {
+    --bg: #fafafa;
+    --card: #ffffff;
+    --text: #1a1a1a;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+    --accent: #2563eb;
+    --warning: #d97706;
+    --danger: #dc2626;
+    --safe: #059669;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 24px;
+    line-height: 1.6;
+    font-size: 14px;
+  }
+  .container { max-width: 960px; margin: 0 auto; }
+  h1 { font-size: 24px; margin: 0 0 8px; }
+  h2 { font-size: 18px; margin: 32px 0 12px; padding-bottom: 6px; border-bottom: 2px solid var(--border); }
+  h3 { font-size: 16px; margin: 20px 0 8px; }
+  .muted { color: var(--muted); font-size: 13px; }
+
+  .info-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+  }
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-top: 12px;
+  }
+  .info-item .label { color: var(--muted); font-size: 12px; }
+  .info-item .value { font-size: 15px; font-weight: 500; }
+
+  .day-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+  }
+  .day-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .day-header .index { font-size: 18px; font-weight: 600; color: var(--accent); }
+  .day-header .date { color: var(--muted); }
+  .day-header .weather { color: var(--muted); font-size: 13px; }
+  .day-theme { color: var(--text); margin-top: 4px; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 12px;
+    font-size: 13px;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th { background: #f3f4f6; font-weight: 500; }
+  tbody tr:nth-child(even) { background: #fafafa; }
+
+  .map-btn {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: var(--accent);
+    color: white;
+    text-decoration: none;
+    font-size: 12px;
+    margin-left: 4px;
+  }
+  .map-btn-amap { background: #059669; }
+  .map-btn-dianping { background: #dc2626; }
+  .map-btn-xhs { background: #ec4899; }
+  .map-btn-reviews { background: #6b7280; }
+  .map-btn:hover { opacity: 0.85; }
+  .map-text { color: var(--muted); font-size: 12px; }
+
+  .brief-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px;
+  }
+  .brief-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+  }
+  .brief-card h3 { margin: 0 0 6px; font-size: 14px; }
+  .brief-card .source { display: block; margin-top: 6px; font-size: 12px; color: var(--muted); }
+  .brief-card a { color: var(--accent); text-decoration: none; word-break: break-all; }
+  .brief-card a:hover { text-decoration: underline; }
+
+  .budget-table tfoot td { font-weight: 600; background: #f9fafb; }
+
+  .secondary-tag {
+    display: inline-block;
+    background: #fef3c7;
+    color: var(--warning);
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+    margin-right: 4px;
+  }
+
+  .risk {
+    background: #fef2f2;
+    border-left: 3px solid var(--danger);
+    padding: 10px 14px;
+    margin: 24px 0;
+    font-size: 13px;
+    color: #7f1d1d;
+  }
+
+  .footer {
+    margin-top: 32px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .downgrade-banner {
+    background: #fef3c7;
+    border-left: 3px solid var(--warning);
+    padding: 10px 14px;
+    margin: 0 0 16px;
+    font-size: 13px;
+    color: #78350f;
+  }
+  .downgrade-banner strong { color: var(--warning); }
+
+  @media print {
+    body { background: white; padding: 0; }
+    .day-section, .info-card, .brief-card { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ===================== 顶部信息卡 ===================== -->
+  <h1>{{TITLE}}</h1>
+  <div class="muted">生成于 {{GENERATED_AT}}</div>
+
+  {{#if NETWORK_DOWNGRADE}}
+  <div class="downgrade-banner">
+    <strong>⚠️ 降级模式</strong> · 检测到当前网络无法访问海外站点，已切换到国内替代源（携程/飞猪/马蜂窝等）。
+    {{DOWNGRADE_NOTE}}
+  </div>
+  {{/if}}
+
+  <div class="info-card">
+    <div class="info-grid">
+      <div class="info-item"><div class="label">出发地</div><div class="value">{{ORIGIN}}</div></div>
+      <div class="info-item"><div class="label">目的地</div><div class="value">{{DESTINATION}}</div></div>
+      <div class="info-item"><div class="label">日期</div><div class="value">{{DATE_START}} → {{DATE_END}}</div></div>
+      <div class="info-item"><div class="label">出行人数</div><div class="value">{{PARTY}}</div></div>
+      <div class="info-item"><div class="label">风格</div><div class="value">{{STYLE}}</div></div>
+      <div class="info-item"><div class="label">节奏</div><div class="value">{{PACE}}</div></div>
+      <div class="info-item"><div class="label">预算</div><div class="value">{{TOTAL_BUDGET}}</div></div>
+    </div>
+  </div>
+
+  <!-- ===================== 速览卡片 ===================== -->
+  <h2>目的地速览</h2>
+  <div class="brief-grid">
+    {{#if VISA}}
+    <div class="brief-card">
+      <h3>签证 / 入境</h3>
+      <div><strong>{{VISA_REQUIRED}}</strong>，停留期 {{VISA_STAY}}</div>
+      <div class="muted">标准受理时长：{{VISA_LEAD_TIME}}</div>
+      <a class="source" href="{{VISA_SOURCE_URL}}" target="_blank">{{VISA_SOURCE_URL}}</a>
+    </div>
+    {{/if}}
+
+    <div class="brief-card">
+      <h3>治安</h3>
+      <div><strong>{{SAFETY_LEVEL}}</strong></div>
+      <div>{{SAFETY_NOTE}}</div>
+      <a class="source" href="{{SAFETY_SOURCE_URL}}" target="_blank">{{SAFETY_SOURCE_URL}}</a>
+    </div>
+
+    <div class="brief-card">
+      <h3>货币</h3>
+      <div>1 {{CURRENCY_CODE}} ≈ ¥{{CURRENCY_RATE}}</div>
+      <div class="muted">{{PAYMENT_HABIT}}</div>
+    </div>
+
+    <div class="brief-card">
+      <h3>插头 / 电压</h3>
+      <div>{{PLUG_TYPE}} 型 / {{VOLTAGE}}</div>
+      <div class="muted">{{ADAPTER_NEEDED}}</div>
+    </div>
+
+    <div class="brief-card">
+      <h3>SIM / 网络</h3>
+      <div>{{SIM_RECOMMENDATION}}</div>
+    </div>
+
+    <div class="brief-card">
+      <h3>紧急联系</h3>
+      <div>当地报警/急救：<strong>{{EMERGENCY_LOCAL}}</strong></div>
+      <div>中国使领馆：{{EMERGENCY_EMBASSY}}</div>
+      <div class="muted">中国领事保护：+86-10-12308</div>
+    </div>
+
+    <div class="brief-card">
+      <h3>💊 常用药品</h3>
+      {{#each MEDICATIONS}}
+      <div><strong>{{NAME}}</strong> · <span class="muted">{{PURPOSE}}</span></div>
+      {{/each}}
+      <div class="muted" style="margin-top:6px; font-size:11px;">⚠️ 处方药出境带处方/英文说明，部分含麻黄素的国内 OTC 在某些国家违禁</div>
+    </div>
+
+    <div class="brief-card">
+      <h3>🏥 当地医院</h3>
+      {{#each HOSPITALS}}
+      <div><strong>{{HOSPITAL_NAME}}</strong></div>
+      <div class="muted">{{HOSPITAL_ADDR}} · {{HOSPITAL_PHONE}}</div>
+      {{/each}}
+    </div>
+
+    <div class="brief-card">
+      <h3>🆘 急救用语</h3>
+      {{#each EMERGENCY_PHRASES}}
+      <div><span class="muted">{{ZH}}</span> · {{LOCAL}}</div>
+      {{/each}}
+    </div>
+  </div>
+
+  <!-- ===================== 每日行程 ===================== -->
+  <h2>每日行程</h2>
+
+  {{#each DAYS}}
+  <div class="day-section">
+    <div class="day-header">
+      <span class="index">{{DAY_INDEX}}</span>
+      <span class="date">{{DAY_DATE}}</span>
+      <span class="weather">{{DAY_WEATHER}}</span>
+    </div>
+    <div class="day-theme">{{DAY_THEME}}</div>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 10%;">时间</th>
+          <th style="width: 28%;">活动</th>
+          <th style="width: 22%;">地点</th>
+          <th style="width: 15%;">交通</th>
+          <th style="width: 25%;">备注</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each ITEMS}}
+        <tr>
+          <td>{{TIME}}</td>
+          <td>{{ACTIVITY}}</td>
+          <td>
+            {{LOCATION_NAME}}
+            {{#if MAP_URL}}<a class="map-btn" href="{{MAP_URL}}" target="_blank">地图</a>{{/if}}
+            {{#unless MAP_URL}}<div class="map-text">{{ADDRESS_TEXT}}</div>{{/unless}}
+          </td>
+          <td>{{TRANSPORT}}</td>
+          <td>{{NOTES}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+  {{/each}}
+
+  <!-- ===================== 预算 breakdown ===================== -->
+  <h2>预算 Breakdown</h2>
+  <table class="budget-table">
+    <thead>
+      <tr>
+        <th>项目</th>
+        <th style="width: 20%;">金额</th>
+        <th>口径说明</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each BUDGET_ITEMS}}
+      <tr>
+        <td>{{CATEGORY}}</td>
+        <td>{{AMOUNT}}</td>
+        <td>{{NOTE}}</td>
+      </tr>
+      {{/each}}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td>合计</td>
+        <td>{{BUDGET_TOTAL}}</td>
+        <td>{{BUDGET_NOTE}}</td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <!-- ===================== 来源附录 ===================== -->
+  <h2>信息来源</h2>
+  <ul class="sources">
+    {{#each SOURCES}}
+    <li>
+      <a href="{{SOURCE_URL}}" target="_blank">{{SOURCE_TITLE}}</a>
+      {{#if SOURCE_DATE}}<span class="muted">（{{SOURCE_DATE}}）</span>{{/if}}
+    </li>
+    {{/each}}
+  </ul>
+
+  <!-- ===================== 风险声明 ===================== -->
+  <div class="risk">
+    行程信息（签证、天气、机票、景点开放、票价）随时可能变动，以上为本次查询时（{{GENERATED_AT}}）看到的公开信息。出行前请以官方页面最终展示为准。
+  </div>
+
+  <div class="footer">
+    本行程由 travel-planner skill 生成 · 数据由 web-access skill 实时核验 · 酒店建议交由 hotel-search skill 进一步检索
+  </div>
+
+</div>
+</body>
+</html>

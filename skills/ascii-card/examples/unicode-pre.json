@@ -1,0 +1,14 @@
+{
+  "width": 44,
+  "style": "unicode",
+  "rows": [
+    { "type": "text", "text": "审批接口 / Approval API", "align": "center" },
+    { "type": "divider" },
+    {
+      "type": "pre",
+      "text": "顾问端 -> API : 提交审批\n  API -> 服务端 : 校验并保存\n  API --> 顾问端 : 返回结果"
+    },
+    { "type": "divider" },
+    { "type": "buttons", "buttons": ["取消", "重新提交"], "align": "right" }
+  ]
+}

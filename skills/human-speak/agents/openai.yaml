@@ -1,0 +1,5 @@
+interface:
+  display_name: "说人话"
+  short_description: "刚才那段没看懂，用直白的话重讲"
+policy:
+  allow_implicit_invocation: false

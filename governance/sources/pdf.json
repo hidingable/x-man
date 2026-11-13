@@ -1,0 +1,14 @@
+{
+  "key": "pdf",
+  "kind": "git",
+  "repo": "https://github.com/anthropics/skills.git",
+  "ref": "main",
+  "mappings": [
+    {
+      "type": "dir",
+      "from": "skills/pdf",
+      "to": "skills/pdf",
+      "optional": false
+    }
+  ]
+}

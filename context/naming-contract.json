@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "taskId": "YYYY-MM-{slug}",
+  "task": {
+    "brainstorm": ".ai-configs/tasks/<task-id>/brainstorm.md",
+    "analysis": ".ai-configs/tasks/<task-id>/analysis.md",
+    "research": ".ai-configs/tasks/<task-id>/research.md",
+    "prd": ".ai-configs/tasks/<task-id>/prd.md",
+    "design": ".ai-configs/tasks/<task-id>/design.md",
+    "plan": ".ai-configs/tasks/<task-id>/plan.md",
+    "progress": ".ai-configs/tasks/<task-id>/progress.md",
+    "review": ".ai-configs/tasks/<task-id>/review.md",
+    "harness": ".ai-configs/tasks/<task-id>/harness.md",
+    "verification": ".ai-configs/tasks/<task-id>/verification.md",
+    "lessons": ".ai-configs/tasks/<task-id>/lessons.md",
+    "doc": ".ai-configs/tasks/<task-id>/doc.md",
+    "prototype": ".ai-configs/tasks/<task-id>/prototype.html"
+  },
+  "adHoc": {
+    "brainstorm": ".ai-configs/brainstorm/YYYY/MM/{task-id}-{需求名称}-脑暴.md",
+    "analysis": ".ai-configs/analysis/YYYY/MM/{task-id}-{需求名称}-需求分析.md",
+    "research": ".ai-configs/research/YYYY/MM/{task-id}-{需求名称}-研究报告.md",
+    "prd": ".ai-configs/prd/YYYY/MM/{task-id}-{需求名称}.md",
+    "design": ".ai-configs/design/YYYY/MM/{task-id}-{需求名称}-设计方案.md",
+    "plan": ".ai-configs/plan/YYYY/MM/{task-id}-{需求名称}-编码计划.md",
+    "progress": ".ai-configs/progress/YYYY/MM/{task-id}-{需求名称}-执行进度.md",
+    "review": ".ai-configs/review/YYYY/MM/{task-id}-{需求名称}-代码审查.md",
+    "harness": ".ai-configs/harness/YYYY/MM/{task-id}-{需求名称}-验证报告.md",
+    "verification": ".ai-configs/verification/YYYY/MM/{task-id}-{需求名称}-完成验证.md",
+    "lessons": ".ai-configs/lessons/YYYY/MM/{task-id}-{需求名称}-复盘.md",
+    "doc": ".ai-configs/docs/YYYY/MM/{task-id}-{需求名称}-文档.md",
+    "prototype": ".ai-configs/prototype/YYYY/MM/{task-id}-{需求名称}-原型.html"
+  },
+  "global": {
+    "decisions": ".ai-configs/decisions/YYYY-MM-DD-{slug}.yaml"
+  }
+}

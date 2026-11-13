@@ -1,0 +1,5 @@
+interface:
+  display_name: "PRD"
+  short_description: "把已确认的需求写成 PRD，或在需求变化后同步现有 PRD"
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Security Scan"
+  short_description: "Find vulnerabilities in a repository or selected paths"
+  default_prompt: "Use $security-scan to find exploitable vulnerabilities in this repository and show the source evidence."

@@ -1,0 +1,5 @@
+interface:
+  display_name: "接入向导"
+  short_description: "生成给人逐步执行的 Bash 接入向导，用于需要人工登录、取凭据或核对外部配置的任务"
+policy:
+  allow_implicit_invocation: false

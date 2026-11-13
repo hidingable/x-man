@@ -1,0 +1,5 @@
+interface:
+  display_name: "澄清问卷"
+  short_description: "把自己答不了的问题整理成发给知情人的异步问卷，只生成不发送"
+policy:
+  allow_implicit_invocation: false

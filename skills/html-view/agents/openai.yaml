@@ -1,0 +1,5 @@
+interface:
+  display_name: "生成 HTML"
+  short_description: "把 .ai-configs 里的 md 产物渲染成离线 HTML"
+policy:
+  allow_implicit_invocation: false

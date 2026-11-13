@@ -1,0 +1,53 @@
+{
+  "skill_name": "web-access",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "查一下 Python 官方文档的 pathlib 用法。宿主有搜索和网页读取工具，本机没有 Node.js 和浏览器。",
+      "expected_output": "直接使用搜索或静态网页读取，不运行 check-deps，不因没有 Node.js 或浏览器而阻塞，也不要求选择浏览器。",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "读取这个公开 JSON API 并汇总字段。宿主已有对应连接器，本地 CDP Proxy 不可用。",
+      "expected_output": "使用已有连接器或 API 能力完成读取，不启动 CDP Proxy，不把 CDP 故障当作任务无法完成。",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "使用宿主浏览器打开我已登录的后台并查看订单状态，浏览器和标签页已指定。",
+      "expected_output": "使用指定的宿主浏览器与标签页，不启动其他浏览器，不运行本地 CDP 依赖检查，不重复询问已指定的浏览器。",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "宿主没有浏览器工具，使用 web-access 的 CDP Proxy 操作页面。skill 安装在一个带空格的目录里，CLAUDE_SKILL_DIR 未设置，当前工作目录是另一个业务项目。",
+      "expected_output": "从实际加载的 web-access/SKILL.md 所在目录设置 WEB_ACCESS_DIR，用引号包裹绝对脚本路径，检查 CDP 分支依赖，不按业务项目根或 CLAUDE_SKILL_DIR 推断。",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "CDP 检查失败，但宿主浏览器仍可完成页面操作。其他任务正在使用现有 Proxy。",
+      "expected_output": "改用可满足目标的宿主浏览器，不批量终止 Proxy，不把继续操作当作用户接受风险，不无条件要求用户修复本地依赖。",
+      "files": []
+    },
+    {
+      "id": 6,
+      "prompt": "选择 CDP Proxy 操作登录后台，页面中需要读取跨站 iframe 的文字并点击其中按钮。已有用户指定的后台标签页，导航后先返回 about:blank。",
+      "expected_output": "先核对目标内容就绪，不把 about:blank、HTTP 200 或 readyState 当业务完成。用 /frames 获取 frameId，用 /eval?frame= 读 iframe 的 DOM；需要真实点击时用 /clickXY 并按 API 的视口坐标规则操作。",
+      "files": []
+    },
+    {
+      "id": 7,
+      "prompt": "web-access 从 2.5.3 升到 2.6.0，旧配置和站点经验仍在 skill 目录。另一个任务正在使用旧的共享 Proxy。",
+      "expected_output": "先读 migration-2.6.md，保护旧用户数据。说明首次检查复制迁移到 ~/.web-access，保留旧文件且不覆盖目标已有数据。源码升级不自动关闭共享 Proxy；必要维护待使用者结束后走 proxy-maintenance，不用 pkill。",
+      "files": []
+    },
+    {
+      "id": 8,
+      "prompt": "前置检查显示已经连接到用户选定的 Dia 浏览器，但代理源码文件刚更新了。是否需要为当前查询重启 Proxy？",
+      "expected_output": "当前查询复用已有健康服务，不因源码更新立即影响共享任务。实际运行版本以 /health 的 runningRevision 为准；确需采纳新运行代码时，在授权且空闲条件下集中维护，不把文件更新说成服务已经升级。",
+      "files": []
+    }
+  ]
+}

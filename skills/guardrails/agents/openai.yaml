@@ -1,0 +1,5 @@
+interface:
+  display_name: "危险 git 拦截"
+  short_description: "给 Claude Code 装上拦截危险 git 命令的 hook"
+policy:
+  allow_implicit_invocation: false

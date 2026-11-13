@@ -1,0 +1,49 @@
+name: Repository checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-and-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      XMAN_RELEASE_REPO: ""
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "22"
+          package-manager-cache: false
+
+      - name: Install check dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends rsync libdigest-sha-perl
+          python3 -m pip install PyYAML==6.0.3
+
+      - name: Build and validate repository
+        run: ./xman setup
+
+      - name: Run tests including installed agent references
+        run: python3 -B -m unittest discover -s tests -v

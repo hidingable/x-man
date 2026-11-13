@@ -1,0 +1,5 @@
+interface:
+  display_name: "设计方案"
+  short_description: "产品与交互设计方案：信息结构、用户流程、界面规则和边界状态"
+policy:
+  allow_implicit_invocation: false

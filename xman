@@ -1,0 +1,466 @@
+#!/bin/bash
+
+set -euo pipefail
+
+# 解析自身真实路径，定位中心仓库根目录
+REAL_PATH="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$0")"
+REPO_ROOT="$(dirname "${REAL_PATH}")"
+SCRIPTS="${REPO_ROOT}/scripts"
+
+VERSION="0.1.0"
+
+# ─── 颜色 ───
+if [ -t 1 ]; then
+  CYAN='\033[36m'
+  GREEN='\033[32m'
+  YELLOW='\033[33m'
+  RESET='\033[0m'
+else
+  CYAN='' GREEN='' YELLOW='' RESET=''
+fi
+
+usage() {
+  cat <<EOF
+${CYAN}xman${RESET} v${VERSION} — x-mansion 中心化 AI skill 仓库 CLI
+
+${YELLOW}用法:${RESET}
+  xman <命令> [参数...]
+
+${YELLOW}安装:${RESET}
+  ${GREEN}install${RESET} <platform>       安装 skill 到指定平台（claude/codex/cursor/gemini/all）
+                            示例: xman install claude --status team-shared
+                                  xman install claude --project /path/to/project
+                                  xman install all --status team-shared
+
+${YELLOW}校验:${RESET}
+  ${GREEN}validate${RESET} [--fix]         校验仓库一致性（SKILL.md / CSV / 软链）
+  ${GREEN}check-team${RESET}               检查 team/skills 与 CSV team-shared 一致性
+  ${GREEN}audit${RESET} [...]              对账本机助手目录与中心仓库
+  ${GREEN}source${RESET} [...]             管理 skill 的来源标记与 source manifest
+
+${YELLOW}工具:${RESET}
+  ${GREEN}list${RESET} [...]               列出所有 skill 概览（--json 给 agent 用）
+  ${GREEN}new${RESET} <name> [...]          创建新 skill 脚手架
+  ${GREEN}update${RESET} [...]             预览或应用外部 skill 更新
+  ${GREEN}doctor${RESET}                   检查运行环境依赖
+  ${GREEN}setup${RESET}                    首次 clone 后的完整设置检查
+
+${YELLOW}Agent:${RESET}
+  ${GREEN}agent${RESET} <子命令>           管理 agent（编排器）
+                            子命令: list
+
+${YELLOW}Plugin:${RESET}
+  ${GREEN}plugin${RESET} <子命令>          管理本地 plugin
+                            子命令: build | check
+
+${YELLOW}Hook:${RESET}
+  ${GREEN}hook${RESET} <子命令>            管理流程 hook 脚本
+                            子命令: list | run <name>
+
+${YELLOW}上下文:${RESET}
+  ${GREEN}context${RESET} <子命令>         管理项目上下文
+                            子命令: init [--auto] [--link] [--legacy]
+                                          [--refresh-conventions]
+                                    confirm | status | check
+                            init 探测技术栈并预填（支持 monorepo 逐子工程），
+                            填入值标 ⟨待确认⟩，核对后 confirm 清标记；
+                            同时落地 .ai-configs/conventions.md（已存在则保持不变，
+                            要用母仓那份覆盖加 --refresh-conventions）
+  ${GREEN}task${RESET} <子命令>            管理 task（需求聚合）
+                            子命令: new <slug> [--title T] | use <id> | current [--json]
+                                    list [--month YYYY-MM] [--stage S] [--tag T] [--json]
+                                    find <关键词> [--json]
+  ${GREEN}journal${RESET} <子命令>         管理 workspace/journal.md 跨会话记忆
+                            子命令: add "msg" [--task <id>] | tail [-n N]
+  ${GREEN}spec${RESET} <子命令>            管理路径绑定的项目规范
+                            子命令: init | list | validate | match <文件路径>
+                                    install-hooks <claude|codex> [--project DIR]
+  ${GREEN}features${RESET} <子命令>        管理 Feature Map（应用有哪些功能、怎么到达、怎么驱动）
+                            子命令: init | new <slug> [--title T] | list | check
+                            内容靠 agent 编目，脚本只管骨架和结构校验
+
+${YELLOW}发布:${RESET}
+  ${GREEN}publish${RESET} <type> [...]      发布子集仓库（team/personal）
+  ${GREEN}bootstrap${RESET} <path>          初始化新的中心 skill 仓库骨架
+
+${YELLOW}示例:${RESET}
+  xman install claude --status team-shared
+  xman install all --status team-shared --dry-run
+  xman install codex --project /path/to/project --plugin engineering
+  xman list --status team-shared
+  xman source list
+  xman update --skill docx
+  xman new my-skill --plugin engineering
+  xman validate --fix
+
+${YELLOW}帮助:${RESET}
+  xman <命令> --help         查看子命令详细帮助
+  xman version               显示版本
+EOF
+}
+
+# ─── install 子命令 ───
+cmd_install() {
+  if [ "$#" -eq 0 ]; then
+    echo "用法: xman install <platform> [参数...]"
+    echo ""
+    echo "平台: claude | codex | cursor | gemini | all"
+    echo ""
+    echo "参数（透传给 sync 脚本）："
+    echo "  --status STATUS    只安装指定状态的 skill/agent"
+    echo "  --plugin NAME      只安装指定 plugin 的 skill"
+    echo "  --skill NAME       只安装指定 skill"
+    echo "  --agent NAME       只安装指定 agent"
+    echo "  --no-agents        跳过 agent 安装"
+    echo "  --project PATH     安装到项目目录（而非全局）"
+    echo "  --target PATH      覆盖目标目录"
+    echo "  --dry-run          仅预览"
+    echo "  --clean            清理目标中未选中的旧软链"
+    return 1
+  fi
+
+  local platform="$1"
+  shift
+
+  # 将 --project PATH 转换为位置参数（sync 脚本的接口）
+  local -a pass_args=()
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --project)
+        pass_args+=("$2")
+        shift 2
+        ;;
+      *)
+        pass_args+=("$1")
+        shift
+        ;;
+    esac
+  done
+
+  case "${platform}" in
+    claude)
+      exec "${SCRIPTS}/sync-claude.sh" "${pass_args[@]+"${pass_args[@]}"}"
+      ;;
+    codex)
+      exec "${SCRIPTS}/sync-codex.sh" "${pass_args[@]+"${pass_args[@]}"}"
+      ;;
+    cursor)
+      exec "${SCRIPTS}/sync-cursor.sh" "${pass_args[@]+"${pass_args[@]}"}"
+      ;;
+    gemini)
+      exec "${SCRIPTS}/sync-gemini.sh" "${pass_args[@]+"${pass_args[@]}"}"
+      ;;
+    all)
+      local any_installed=false
+      for p in claude codex cursor gemini; do
+        local script="${SCRIPTS}/sync-${p}.sh"
+        if [ -x "${script}" ]; then
+          echo "=== 安装到 ${p} ==="
+          "${script}" "${pass_args[@]+"${pass_args[@]}"}" || true
+          echo ""
+          any_installed=true
+        fi
+      done
+      if [ "${any_installed}" = "false" ]; then
+        echo "没有找到可用的平台同步脚本" >&2
+        return 1
+      fi
+      ;;
+    *)
+      echo "未知平台: ${platform}" >&2
+      echo "可用平台: claude | codex | cursor | gemini | all" >&2
+      return 1
+      ;;
+  esac
+}
+
+# ─── publish 子命令 ───
+cmd_publish() {
+  if [ "$#" -eq 0 ]; then
+    echo "用法: xman publish <type> [参数...]"
+    echo "类型: team | personal"
+    return 1
+  fi
+
+  local pub_type="$1"
+  shift
+
+  case "${pub_type}" in
+    team)
+      exec "${SCRIPTS}/publish-team.sh" "$@"
+      ;;
+    personal)
+      exec "${SCRIPTS}/publish-personal.sh" "$@"
+      ;;
+    *)
+      echo "未知发布类型: ${pub_type}" >&2
+      echo "可用类型: team | personal" >&2
+      return 1
+      ;;
+  esac
+}
+
+# ─── context 子命令 ───
+cmd_context() {
+  if [ "$#" -eq 0 ]; then
+    echo "用法: xman context <子命令> [参数...]"
+    echo ""
+    echo "子命令:"
+    echo "  init [DIR] [--auto|-y] [--link] [--legacy] [--refresh-conventions]"
+    echo "                           初始化项目上下文 + 自动探测项目特征"
+    echo "  confirm [DIR]            确认探测结果（清除 ⟨待确认⟩ 标记）"
+    echo "  status [DIR]             查看项目上下文状态"
+    echo "  check [DIR]              校验项目上下文完整性"
+    return 1
+  fi
+
+  local subcmd="$1"
+  shift
+
+  case "${subcmd}" in
+    init)
+      exec "${SCRIPTS}/context-init.sh" "$@"
+      ;;
+    confirm)
+      exec "${SCRIPTS}/context-init.sh" --confirm "$@"
+      ;;
+    status)
+      exec "${SCRIPTS}/context-init.sh" --status "$@"
+      ;;
+    check)
+      exec "${SCRIPTS}/context-init.sh" --check "$@"
+      ;;
+    *)
+      echo "未知 context 子命令: ${subcmd}" >&2
+      echo "可用子命令: init | confirm | status | check" >&2
+      return 1
+      ;;
+  esac
+}
+
+# ─── plugin 子命令 ───
+cmd_plugin() {
+  if [ "$#" -eq 0 ]; then
+    echo "用法: xman plugin <子命令>"
+    echo "子命令: build | check | takeover | restore"
+    return 1
+  fi
+
+  local subcmd="$1"
+  shift
+  case "${subcmd}" in
+    build)
+      exec "${SCRIPTS}/build-plugin.sh" "$@"
+      ;;
+    check)
+      exec "${SCRIPTS}/build-plugin.sh" --check "$@"
+      ;;
+    takeover|restore)
+      exec python3 "${SCRIPTS}/plugin-overlap.py" "${subcmd}" "$@"
+      ;;
+    *)
+      echo "未知 plugin 子命令: ${subcmd}" >&2
+      echo "可用子命令: build | check | takeover | restore" >&2
+      return 1
+      ;;
+  esac
+}
+
+# ─── agent 子命令 ───
+cmd_agent() {
+  if [ "$#" -eq 0 ]; then
+    echo "用法: xman agent <子命令>"
+    echo ""
+    echo "子命令:"
+    echo "  list    列出所有 agent"
+    return 1
+  fi
+
+  local subcmd="$1"
+  shift
+
+  case "${subcmd}" in
+    list)
+      local agents_dir="${REPO_ROOT}/agents"
+      if [ ! -d "${agents_dir}" ]; then
+        echo "agents/ 目录不存在" >&2
+        return 1
+      fi
+      echo "=== Agent 列表 ==="
+      echo ""
+      for agent_file in "${agents_dir}"/*.md; do
+        [ -f "${agent_file}" ] || continue
+        # 只有带 name front-matter 的才是 agent 定义，README.md 这类文档跳过
+        [ "$(head -1 "${agent_file}")" = "---" ] || continue
+        awk 'NR==1{next} /^---[[:space:]]*$/{exit 1} /^name:/{exit 0}' "${agent_file}" || continue
+        local name desc
+        name=$(basename "${agent_file}" .md)
+        desc=$(head -10 "${agent_file}" | grep '^description:' | sed 's/^description: *"//;s/"$//' | cut -c1-60 || true)
+        printf "  %-20s %s\n" "${name}" "${desc}"
+      done
+      ;;
+    *)
+      echo "未知 agent 子命令: ${subcmd}" >&2
+      echo "可用子命令: list" >&2
+      return 1
+      ;;
+  esac
+}
+
+# ─── hook 子命令 ───
+cmd_hook() {
+  if [ "$#" -eq 0 ]; then
+    echo "用法: xman hook <子命令> [参数...]"
+    echo ""
+    echo "子命令:"
+    echo "  list              列出所有可用 hook"
+    echo "  run <hook-name>   执行指定 hook"
+    return 1
+  fi
+
+  local subcmd="$1"
+  shift
+
+  local hooks_dir="${REPO_ROOT}/hooks"
+
+  case "${subcmd}" in
+    list)
+      if [ ! -d "${hooks_dir}" ]; then
+        echo "hooks/ 目录不存在" >&2
+        return 1
+      fi
+      echo "=== Hook 列表 ==="
+      echo ""
+      for hook_file in "${hooks_dir}"/*.sh; do
+        [ -f "${hook_file}" ] || continue
+        local name
+        name=$(basename "${hook_file}" .sh)
+        local desc
+        desc=$(head -3 "${hook_file}" | grep '^#' | tail -1 | sed 's/^# *//')
+        printf "  %-25s %s\n" "${name}" "${desc}"
+      done
+      ;;
+    run)
+      if [ "$#" -eq 0 ]; then
+        echo "用法: xman hook run <hook-name> [项目目录]" >&2
+        return 1
+      fi
+      local hook_name="$1"
+      local project_dir="${2:-.}"
+      local hook_script="${hooks_dir}/${hook_name}.sh"
+
+      # 优先检查项目级 hook
+      local project_hook="${project_dir}/.ai-configs/hooks/${hook_name}.sh"
+      if [ -x "${project_hook}" ]; then
+        echo "执行项目级 hook: ${project_hook}"
+        exec "${project_hook}" "${project_dir}"
+      elif [ -x "${hook_script}" ]; then
+        echo "执行仓库级 hook: ${hook_script}"
+        exec "${hook_script}" "${project_dir}"
+      else
+        echo "未找到 hook: ${hook_name}" >&2
+        echo "可用 hook: $(ls "${hooks_dir}"/*.sh 2>/dev/null | xargs -I{} basename {} .sh | tr '\n' ' ')" >&2
+        return 1
+      fi
+      ;;
+    *)
+      echo "未知 hook 子命令: ${subcmd}" >&2
+      echo "可用子命令: list | run" >&2
+      return 1
+      ;;
+  esac
+}
+
+# ─── 主路由 ───
+if [ "$#" -eq 0 ]; then
+  usage
+  exit 0
+fi
+
+command="$1"
+shift
+
+case "${command}" in
+  install)
+    cmd_install "$@"
+    ;;
+  validate)
+    exec "${SCRIPTS}/validate.sh" "$@"
+    ;;
+  check-team)
+    exec "${SCRIPTS}/check-team-links.sh" "$@"
+    ;;
+  audit)
+    exec "${SCRIPTS}/audit-sync.sh" "$@"
+    ;;
+  list)
+    exec "${SCRIPTS}/list.sh" "$@"
+    ;;
+  source)
+    exec python3 "${SCRIPTS}/source-manager.py" "$@"
+    ;;
+  update)
+    exec python3 "${SCRIPTS}/source-manager.py" update "$@"
+    ;;
+  new)
+    exec "${SCRIPTS}/new-skill.sh" "$@"
+    ;;
+  doctor)
+    exec "${SCRIPTS}/doctor.sh" "$@"
+    ;;
+  setup)
+    echo "=== xman setup ==="
+    echo ""
+    echo "步骤 1/3: 环境检查"
+    "${SCRIPTS}/doctor.sh" || { echo "环境检查失败，请先安装缺失的依赖。" >&2; exit 1; }
+    echo ""
+    echo "步骤 2/3: 构建本地 plugin"
+    "${SCRIPTS}/build-plugin.sh"
+    echo ""
+    echo "步骤 3/3: 仓库校验"
+    "${SCRIPTS}/validate.sh" "$@"
+    echo ""
+    echo "✅ 设置完成。运行 'xman list' 浏览 skill，'xman install <platform>' 开始安装。"
+    ;;
+  publish)
+    cmd_publish "$@"
+    ;;
+  bootstrap)
+    exec "${SCRIPTS}/bootstrap-repo.sh" "$@"
+    ;;
+  context)
+    cmd_context "$@"
+    ;;
+  task)
+    exec "${SCRIPTS}/task.sh" "$@"
+    ;;
+  journal)
+    exec "${SCRIPTS}/journal.sh" "$@"
+    ;;
+  spec)
+    exec python3 "${SCRIPTS}/spec.py" "$@"
+    ;;
+  features)
+    exec python3 "${SCRIPTS}/features.py" "$@"
+    ;;
+  agent)
+    cmd_agent "$@"
+    ;;
+  plugin)
+    cmd_plugin "$@"
+    ;;
+  hook)
+    cmd_hook "$@"
+    ;;
+  version|--version|-v)
+    echo "xman v${VERSION}"
+    ;;
+  help|--help|-h)
+    usage
+    ;;
+  *)
+    echo "未知命令: ${command}" >&2
+    echo "运行 'xman help' 查看可用命令。" >&2
+    exit 1
+    ;;
+esac

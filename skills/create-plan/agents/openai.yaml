@@ -1,0 +1,5 @@
+interface:
+  display_name: "编码计划"
+  short_description: "把明确的目标和代码事实写成编码计划，或按新事实更新现有计划"
+policy:
+  allow_implicit_invocation: false

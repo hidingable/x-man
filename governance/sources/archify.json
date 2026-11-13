@@ -1,0 +1,127 @@
+{
+  "key": "archify",
+  "kind": "git",
+  "repo": "https://github.com/tt-a1i/archify.git",
+  "ref": "v3.2.0",
+  "revision": "208acba8d412335185b2056fedf54b3405df43fb",
+  "note": "固定 v3.2.0；运行包按映射保留，上游入口同步为 UPSTREAM.md。本地 SKILL.md 为中文适配层，不被 update 覆盖；升级时人工核对产物路径、权限与工作流变化。examples 排除可重新渲染的 HTML，保留 JSON 源；无须导入上游开发仓库或安装 npm 依赖。",
+  "mappings": [
+    {
+      "type": "file",
+      "from": "archify/LICENSE",
+      "to": "skills/archify/LICENSE",
+      "optional": false
+    },
+    {
+      "type": "file",
+      "from": "archify/SKILL.md",
+      "to": "skills/archify/UPSTREAM.md",
+      "optional": false
+    },
+    {
+      "type": "file",
+      "from": "archify/THIRD_PARTY_NOTICES.md",
+      "to": "skills/archify/THIRD_PARTY_NOTICES.md",
+      "optional": false
+    },
+    {
+      "type": "dir",
+      "from": "archify/assets",
+      "to": "skills/archify/assets",
+      "optional": false
+    },
+    {
+      "type": "dir",
+      "from": "archify/bin",
+      "to": "skills/archify/bin",
+      "optional": false
+    },
+    {
+      "type": "dir",
+      "from": "archify/brand-marks",
+      "to": "skills/archify/brand-marks",
+      "optional": false
+    },
+    {
+      "type": "dir",
+      "from": "archify/delta",
+      "to": "skills/archify/delta",
+      "optional": false
+    },
+    {
+      "type": "dir",
+      "from": "archify/examples",
+      "to": "skills/archify/examples",
+      "optional": false,
+      "exclude": [
+        "*.html"
+      ]
+    },
+    {
+      "type": "dir",
+      "from": "archify/explainer",
+      "to": "skills/archify/explainer",
+      "optional": false
+    },
+    {
+      "type": "dir",
+      "from": "archify/locales",
+      "to": "skills/archify/locales",
+      "optional": false
+    },
+    {
+      "type": "dir",
+      "from": "archify/migrations",
+      "to": "skills/archify/migrations",
+      "optional": false
+    },
+    {
+      "type": "file",
+      "from": "archify/package-lock.json",
+      "to": "skills/archify/package-lock.json",
+      "optional": false
+    },
+    {
+      "type": "file",
+      "from": "archify/package.json",
+      "to": "skills/archify/package.json",
+      "optional": false
+    },
+    {
+      "type": "dir",
+      "from": "archify/recipes",
+      "to": "skills/archify/recipes",
+      "optional": false
+    },
+    {
+      "type": "dir",
+      "from": "archify/references",
+      "to": "skills/archify/references",
+      "optional": false
+    },
+    {
+      "type": "dir",
+      "from": "archify/renderers",
+      "to": "skills/archify/renderers",
+      "optional": false
+    },
+    {
+      "type": "dir",
+      "from": "archify/schemas",
+      "to": "skills/archify/schemas",
+      "optional": false
+    },
+    {
+      "type": "dir",
+      "from": "archify/scripts",
+      "to": "skills/archify/scripts",
+      "optional": false
+    },
+    {
+      "type": "file",
+      "from": "archify/skill-release.json",
+      "to": "skills/archify/skill-release.json",
+      "optional": false
+    }
+  ]
+}

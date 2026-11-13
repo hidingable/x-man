@@ -1,0 +1,5 @@
+interface:
+  display_name: "解决合并冲突"
+  short_description: "处理进行中的 merge、rebase 或 cherry-pick 冲突，按变更意图做语义合并"
+policy:
+  allow_implicit_invocation: false

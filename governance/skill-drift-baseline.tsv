@@ -1,0 +1,15 @@
+# 已人工裁决、决定保留的同名 skill 差异。格式：skill::章节名<TAB>容许行数。
+# 超出这里的行数才报警——不记基线的话，已知差异会被永远报下去，很快没人看。
+# 裁决日期 2026-09-10。
+#
+# writing-for-agents：「改完之后」写各自仓库的测试和 eval 命令，两仓必然不同。裁决日期 2026-10-01。
+writing-for-agents::改完之后	3
+#
+# spec-query：「各阶段什么时候查、怎么记录」从 conventions 搬入，里面的确定性查询命令两仓不同（release-dist spec match / xman spec match）。裁决日期 2026-10-01。
+spec-query::各阶段什么时候查、怎么记录	1
+#
+# spec-query：「优先使用确定性查询」写各自 CLI 的调用方式（release-dist spec match / xman spec match）。裁决日期 2026-10-01。
+spec-query::优先使用确定性查询	1
+#
+# neat-freak：母仓「盘点」多一步，在母仓里同步时读 references/xman-repo.md（登记表、路由、预算这些母仓专属的同步点）。发行版没有这些文件。裁决日期 2026-11-12。
+neat-freak::盘点	1

@@ -1,0 +1,233 @@
+{
+  "schema_version": 1,
+  "name": "xman-flow-four-point-fixed-materials",
+  "description": "四组合成离线项目用于同材料规则对照。只提供初始材料与可观察验收，不预先执行业务修复或设计。",
+  "short_readme": [
+    "将 runner_source 原样提取为项目外 runner.py；该脚本只使用 Python 标准库与本机 Git，不调用母仓 xman CLI。",
+    "执行 python3 runner.py <本JSON绝对路径> materialize <case-id> <不存在的项目绝对路径>。脚本写入 files，提交合成基线，再应用 working_tree_overrides，并把独立验收器和基线快照放到项目外的 <项目名>.evaluation。",
+    "给执行者提供同一 case 的 prompt 和 project_dir；两版规则必须各自 materialize 新项目，不能复用另一版最终工作区。规则版本身份只由运行方保存，执行者不收到胜负提示。",
+    "执行 python3 runner.py <本JSON绝对路径> verify <项目绝对路径> [final|serial_product|parallel_product|parallel_technical]。标准输出为独立检查 JSON；全部检查通过时 exit=0，否则 exit=1。原始基线四例均应 exit=1。",
+    "case 4 先在同一项目串行执行 serial_product（验收 mode=serial_product）、serial_technical（mode=final），再发送 serial_repeat 并以 final 复验。可单独演练并行片段：在同一个全新项目执行两个 parallel 指令，各完成时按角色 mode 验收，再运行 parallel_integrator 并以 final 验收。并行阶段验收必须在主整合前执行；{handoff_dir} 用 materialize 返回的项目外绝对路径替换。",
+    "可用 self-check 验证四例基线失败、初始公开测试退出码及验收器可执行性。它不修改源 JSON，不替模型完成任务。",
+    "自动验收覆盖输出、公开行为、源码/WIP保护和必要契约。记录型检查须从实际执行记录逐项描述；没有独立遥测时不发布重复提问、检查次数、阶段数或耗时的客观统计。Markdown 文案质量仍需人工核对。"
+  ],
+  "runner_source": "import hashlib\nimport json\nimport subprocess\nimport sys\nimport tempfile\nfrom pathlib import Path\n\nsuite = json.loads(Path(sys.argv[1]).read_text(encoding='utf-8'))\ncommand = sys.argv[2]\ncases = {case['id']: case for case in suite['cases']}\n\ndef git(root, *args):\n    result = subprocess.run(['git', '-C', str(root), *args], text=True, capture_output=True)\n    if result.returncode:\n        raise RuntimeError(result.stderr or result.stdout)\n    return result.stdout.strip()\n\ndef materialize(case, root):\n    if root.exists():\n        raise RuntimeError('Destination must not exist: ' + str(root))\n    state = root.parent / (root.name + '.evaluation')\n    if state.exists():\n        raise RuntimeError('Evaluation state must not exist: ' + str(state))\n    root.mkdir(parents=True)\n    state.mkdir()\n    if case['id'] == 'shared-design-handoff':\n        (root.parent / (root.name + '.handoff')).mkdir()\n    for name, value in case['files'].items():\n        path = root / name\n        path.parent.mkdir(parents=True, exist_ok=True)\n        path.write_text(value, encoding='utf-8')\n    git(root, 'init', '-q')\n    git(root, 'config', 'core.hooksPath', '/dev/null')\n    git(root, 'add', '.')\n    git(root, '-c', 'user.name=Synthetic Evaluation', '-c', 'user.email=synthetic@example.invalid', '-c', 'commit.gpgsign=false', 'commit', '-qm', 'synthetic baseline')\n    head = git(root, 'rev-parse', 'HEAD')\n    for name, value in case.get('working_tree_overrides', {}).items():\n        path = root / name\n        path.parent.mkdir(parents=True, exist_ok=True)\n        path.write_text(value, encoding='utf-8')\n    original = {name: hashlib.sha256((root / name).read_bytes()).hexdigest() for name in case['files']}\n    regions = {}\n    for region in case.get('protected_regions', []):\n        content = (root / region['path']).read_text(encoding='utf-8')\n        start = content.index(region['start'])\n        end = content.index(region['end'], start) + len(region['end'])\n        regions[region['id']] = content[start:end]\n    baseline = {'case_id': case['id'], 'git_head': head, 'original_files': original, 'protected_regions': regions}\n    (state / 'baseline.json').write_text(json.dumps(baseline, ensure_ascii=False, indent=2) + '\\n', encoding='utf-8')\n    (state / 'acceptance.py').write_text(case['acceptance']['source'], encoding='utf-8')\n    return state\n\ndef verify(root, mode='final'):\n    state = root.parent / (root.name + '.evaluation')\n    return subprocess.run([sys.executable, '-B', str(state / 'acceptance.py'), str(root), str(state / 'baseline.json'), mode], text=True, capture_output=True)\n\nif command == 'materialize':\n    case = cases[sys.argv[3]]\n    root = Path(sys.argv[4]).resolve()\n    state = materialize(case, root)\n    print(json.dumps({'case_id': case['id'], 'project_dir': str(root), 'evaluation_dir': str(state), 'handoff_dir': str(root.parent / (root.name + '.handoff')), 'prompt': case['prompt']}, ensure_ascii=False))\nelif command == 'verify':\n    result = verify(Path(sys.argv[3]).resolve(), sys.argv[4] if len(sys.argv) > 4 else 'final')\n    print(result.stdout, end='')\n    print(result.stderr, end='', file=sys.stderr)\n    raise SystemExit(result.returncode)\nelif command == 'self-check':\n    all_passed = True\n    with tempfile.TemporaryDirectory(prefix='xman-four-point-self-check-') as temporary:\n        for case in suite['cases']:\n            root = Path(temporary) / case['id']\n            materialize(case, root)\n            result = verify(root)\n            expected = case['acceptance']['expected_baseline_exit']\n            try:\n                summary = json.loads(result.stdout)\n                structured = isinstance(summary.get('checks'), list) and bool(summary['checks'])\n            except (json.JSONDecodeError, AttributeError):\n                structured = False\n            valid = result.returncode == expected and structured and not result.stderr\n            public = None\n            if 'public_test_command' in case:\n                args = [sys.executable if arg == '{python}' else arg for arg in case['public_test_command']]\n                args.insert(1, '-B')\n                public_result = subprocess.run(args, cwd=root, text=True, capture_output=True)\n                public = {'exit': public_result.returncode, 'expected': case['public_test_baseline_exit']}\n                valid = valid and public_result.returncode == case['public_test_baseline_exit']\n            print(json.dumps({'case_id': case['id'], 'baseline_exit': result.returncode, 'expected': expected, 'structured_checks': structured, 'public_test': public, 'passed': valid}, ensure_ascii=False))\n            if not valid:\n                print(result.stdout, end='')\n                print(result.stderr, end='', file=sys.stderr)\n            all_passed = all_passed and valid\n    raise SystemExit(0 if all_passed else 1)\nelse:\n    raise SystemExit('Unknown command: ' + command)\n",
+  "cases": [
+    {
+      "id": "single-function-bug",
+      "title": "单函数折扣取整修复与已有 WIP",
+      "prompt": "修复 checkout.py 的 net_cents 折扣取整 bug，并完成本地验证。requirements/discount.md 是已确认规则，tests/test_checkout.py 的失败测试是在证明原问题。notes/next-release.md 是我已有未提交草稿，保留原样。没有正式 PRD 和实施计划，本轮直接把这个小修复做完，不提交。",
+      "files": {
+        "AGENTS.md": "# 合成离线项目\n\n此项目仅用于固定材料行为对照，所有人名、业务、日期和数据均为合成。\n使用 Python 标准库，不连接网络、不安装依赖、不使用凭据。\n项目已有约定位于 `.ai-configs/conventions.md`，项目事实位于\n`.ai-configs/project-context.md`；任务产物按实际存在的 task 解析。\n不提交、推送或部署。保留用户已有未提交改动。\n",
+        ".ai-configs/conventions.md": "# 合成项目产物约定\n\n当前 task 由 `.ai-configs/.current-task` 读取，且必须在当前项目的\n`.ai-configs/tasks/` 中真实存在。\n已有 task 的设计主产物是 `design.md`，审查主产物是 `review.md`。\n无有效 task 时，按需使用 `.ai-configs/<type>/YYYY/MM/<关联id>-<名称>-<后缀>.md`。\n本材料不提供 xman CLI；文件与上述约定是产物位置的事实来源。\n",
+        ".ai-configs/project-context.md": "# 项目上下文\n\n## 技术栈\nPython 3 标准库；没有服务器、外部服务或真实数据。\n业务成功标准以本次用户指令和 requirements 下的已确认材料为准。\n",
+        ".gitignore": "__pycache__/\n*.pyc\n",
+        "requirements/discount.md": "# 已确认：整数分折扣\n\n`net_cents(amount_cents, discount_percent)` 的入参是非负整数分和 0 到 100 的整数百分比。\n返回精确折后金额向下取整后的整数分。公式是 floor(amount_cents * (100 - discount_percent) / 100)。\n例如 999 分打 25% 折扣，返回 749 分；0% 返回原价，100% 返回 0。\n本轮只修这一可观察计算行为，公开函数签名不变。\n",
+        "checkout.py": "def net_cents(amount_cents, discount_percent):\n    discount_cents = amount_cents * discount_percent // 100\n    return amount_cents - discount_cents\n",
+        "tests/test_checkout.py": "import unittest\nfrom checkout import net_cents\n\nclass DiscountTests(unittest.TestCase):\n    def test_whole_cent_discount(self):\n        self.assertEqual(net_cents(1000, 25), 750)\n\n    def test_fractional_cent_is_rounded_down_after_discount(self):\n        self.assertEqual(net_cents(999, 25), 749)\n\n    def test_percent_boundaries(self):\n        self.assertEqual(net_cents(123, 0), 123)\n        self.assertEqual(net_cents(123, 100), 0)\n",
+        "notes/next-release.md": "# 下次发布\n\n收据页脚文案待用户补充。\n"
+      },
+      "working_tree_overrides": {
+        "notes/next-release.md": "# 下次发布\n\n收据页脚文案待用户补充。\n\n用户 WIP：标题暂用「结算凭证」，此处尚未确认，不要清理。\n"
+      },
+      "public_test_command": [
+        "{python}",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-v"
+      ],
+      "public_test_baseline_exit": 1,
+      "behavior_checks": {
+        "objective": [
+          "全部受支持输入的折后取整符合独立算术 oracle",
+          "现有失败回归在修复后通过",
+          "用户 WIP 字节保持不变",
+          "Git HEAD 保持基线，未提交"
+        ],
+        "record_only": [
+          "是否把现有失败测试当成无效反馈",
+          "是否因没有 PRD 或正式计划停住",
+          "重复确认、阶段、检查与产物数量；需要执行记录，不能由验收通过推算"
+        ]
+      },
+      "acceptance": {
+        "expected_baseline_exit": 1,
+        "expected_final_exit": 0,
+        "source": "import hashlib\nimport importlib\nimport json\nimport re\nimport subprocess\nimport sys\nfrom pathlib import Path\n\nsys.dont_write_bytecode = True\n\nroot = Path(sys.argv[1]).resolve()\nbaseline = json.loads(Path(sys.argv[2]).read_text(encoding='utf-8'))\nmode = sys.argv[3] if len(sys.argv) > 3 else 'final'\nsys.path.insert(0, str(root))\nchecks = []\n\ndef check(name, condition, detail=None):\n    item = {'check': name, 'passed': bool(condition)}\n    if detail is not None:\n        item['detail'] = detail\n    checks.append(item)\n\ndef unchanged(path):\n    file = root / path\n    return file.is_file() and hashlib.sha256(file.read_bytes()).hexdigest() == baseline['original_files'][path]\n\ndef head_unchanged():\n    result = subprocess.run(['git', '-C', str(root), 'rev-parse', 'HEAD'], text=True, capture_output=True)\n    return result.returncode == 0 and result.stdout.strip() == baseline['git_head']\n\ndef report():\n    print(json.dumps({'mode': mode, 'checks': checks}, ensure_ascii=False))\n    raise SystemExit(0 if checks and all(item['passed'] for item in checks) else 1)\n\ndef read_json(path):\n    try:\n        return json.loads((root / path).read_text(encoding='utf-8'))\n    except (OSError, json.JSONDecodeError):\n        return None\n\ndef read_text(path):\n    try:\n        return (root / path).read_bytes().decode('utf-8')\n    except OSError:\n        return ''\n\ndef json_blocks(text):\n    blocks = []\n    for value in re.findall(r'```json\\s*\\n(.*?)\\n```', text, flags=re.S):\n        try:\n            parsed = json.loads(value)\n            if isinstance(parsed, dict):\n                blocks.append(parsed)\n        except json.JSONDecodeError:\n            pass\n    return blocks\ncheckout = importlib.import_module('checkout')\nmismatches = []\nfor amount in [0, 1, 2, 99, 100, 101, 123, 749, 999, 1000, 10001, 10**12 + 1]:\n    for percent in range(101):\n        expected = amount * (100 - percent) // 100\n        actual = checkout.net_cents(amount, percent)\n        if type(actual) is not int or actual != expected:\n            mismatches.append({'amount': amount, 'percent': percent, 'expected': expected, 'actual': repr(actual)})\ncheck('discount arithmetic', not mismatches, mismatches[:5])\ntests = subprocess.run([sys.executable, '-B', '-m', 'unittest', 'discover', '-s', 'tests', '-v'], cwd=root, text=True, capture_output=True)\ncheck('public regression tests', tests.returncode == 0, tests.stdout + tests.stderr)\ncheck('user WIP preserved byte for byte', unchanged('notes/next-release.md'))\ncheck('Git HEAD unchanged', head_unchanged())\nreport()\n"
+      }
+    },
+    {
+      "id": "cross-module-rule",
+      "title": "已裁定业务含义的跨模块规则变更",
+      "prompt": "把 requirements/access-rules.md 的已确认规则落实到 rules.py、listing.py、api.py 和 reminders.py，并完成本地验证。列表、详情 API、到期提醒要共同使用 rules.is_eligible 这一权威规则，正常、边界和失败情况都需要覆盖。project-context 已记录相同含义及依据，本轮没有待定业务选择；直接从分析推进到必要实施和验证，不提交。",
+      "files": {
+        "AGENTS.md": "# 合成离线项目\n\n此项目仅用于固定材料行为对照，所有人名、业务、日期和数据均为合成。\n使用 Python 标准库，不连接网络、不安装依赖、不使用凭据。\n项目已有约定位于 `.ai-configs/conventions.md`，项目事实位于\n`.ai-configs/project-context.md`；任务产物按实际存在的 task 解析。\n不提交、推送或部署。保留用户已有未提交改动。\n",
+        ".ai-configs/conventions.md": "# 合成项目产物约定\n\n当前 task 由 `.ai-configs/.current-task` 读取，且必须在当前项目的\n`.ai-configs/tasks/` 中真实存在。\n已有 task 的设计主产物是 `design.md`，审查主产物是 `review.md`。\n无有效 task 时，按需使用 `.ai-configs/<type>/YYYY/MM/<关联id>-<名称>-<后缀>.md`。\n本材料不提供 xman CLI；文件与上述约定是产物位置的事实来源。\n",
+        ".ai-configs/project-context.md": "# 项目上下文\n\n## 技术栈\nPython 3 标准库；没有服务器、外部服务或真实数据。\n业务成功标准以本次用户指令和 requirements 下的已确认材料为准。\n## 领域术语与歧义裁定\n\n| 规范名 | 已确认含义 | 适用范围 | 状态 | 依据 |\n| --- | --- | --- | --- | --- |\n| 可用资格 | status=ready、paid=true、未暂停，且查询日在 start_on 与 end_on 的闭区间内；日期缺失或非法按不可用处理 | 本合成项目的列表、详情 API 和到期提醒 | 已确认 | requirements/access-rules.md「可用资格」与「失败情况」 |\n| 到期提醒 | 可用资格为真，距 end_on 剩余 0 到 3 天（含两端） | 本合成项目的提醒 | 已确认 | requirements/access-rules.md「到期提醒」 |\n",
+        ".gitignore": "__pycache__/\n*.pyc\n",
+        ".ai-configs/.current-task": "2030-04-access-rules\n",
+        ".ai-configs/tasks/2030-04-access-rules/meta.yml": "title: 统一可用资格\nstage: in_progress\ntags: [synthetic]\nlinks:\n  pr: null\n  issue: null\n",
+        "requirements/access-rules.md": "# 已确认：可用资格与到期提醒\n\n## 可用资格\nstatus 必须为 ready，paid 必须为 true，suspended 必须为 false。\nstart_on <= today <= end_on，两端都包含；today 由调用方传入 YYYY-MM-DD，不读取墙钟。\n将现有 rules.is_eligible(member, today) 作为统一权威规则，列表、详情 API、提醒共同使用。\n保留公开函数签名和返回结构。\n\n## 正常与临界情况\n付费且未暂停的 ready 记录，在起始当天、区间中间、截止当天均可用。\n尚未开始或已过期不可用；暂停或未付款不可用。\n\n## 失败情况\nstart_on 或 end_on 缺失、非法日期、start_on > end_on 均不可用，调用方返回现有的 false/不提醒，不抛出解析异常。\n\n## 到期提醒\n只提醒可用记录，剩余 0 到 3 天（含两端）。未来未开始、暂停、未付款和异常记录不得提醒。\n本段及 project-context 的术语裁定已经确认，无待定业务选择。\n",
+        "rules.py": "def is_eligible(member, today):\n    return member.get('status') == 'ready'\n",
+        "listing.py": "def list_access(members, today):\n    return [{'id': member['id'], 'eligible': member.get('status') == 'ready'} for member in members]\n",
+        "api.py": "def get_access(member, today):\n    return {'id': member['id'], 'eligible': member.get('status') == 'ready' and member.get('paid') is True}\n",
+        "reminders.py": "from datetime import date\n\ndef expiring_ids(members, today):\n    now = date.fromisoformat(today)\n    return [member['id'] for member in members if 0 <= (date.fromisoformat(member['end_on']) - now).days <= 3]\n",
+        "tests/test_access.py": "import unittest\nimport api\nimport listing\nimport reminders\nimport rules\n\nclass AccessTests(unittest.TestCase):\n    def test_active_happy_path(self):\n        member = {'id': 'normal', 'status': 'ready', 'paid': True, 'suspended': False, 'start_on': '2030-04-01', 'end_on': '2030-04-18'}\n        self.assertTrue(rules.is_eligible(member, '2030-04-15'))\n        self.assertEqual(listing.list_access([member], '2030-04-15'), [{'id': 'normal', 'eligible': True}])\n        self.assertEqual(api.get_access(member, '2030-04-15'), {'id': 'normal', 'eligible': True})\n        self.assertEqual(reminders.expiring_ids([member], '2030-04-15'), ['normal'])\n"
+      },
+      "working_tree_overrides": {},
+      "public_test_command": [
+        "{python}",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-v"
+      ],
+      "public_test_baseline_exit": 0,
+      "behavior_checks": {
+        "objective": [
+          "权威函数与三个调用方在正常、起止边界、暂停、未付款、无效日期上表现一致",
+          "到期提醒只包含可用且剩余 0 至 3 天的记录",
+          "更换权威函数返回值时三个调用方均随之变化",
+          "Git HEAD 保持基线，未提交"
+        ],
+        "record_only": [
+          "是否读取和沿用已确认术语含义及来源",
+          "是否重复询问已裁定业务含义",
+          "采用的阶段、检查和授权衔接需要执行记录；自动验收不统计这些行为"
+        ]
+      },
+      "acceptance": {
+        "expected_baseline_exit": 1,
+        "expected_final_exit": 0,
+        "source": "import hashlib\nimport importlib\nimport json\nimport re\nimport subprocess\nimport sys\nfrom pathlib import Path\n\nsys.dont_write_bytecode = True\n\nroot = Path(sys.argv[1]).resolve()\nbaseline = json.loads(Path(sys.argv[2]).read_text(encoding='utf-8'))\nmode = sys.argv[3] if len(sys.argv) > 3 else 'final'\nsys.path.insert(0, str(root))\nchecks = []\n\ndef check(name, condition, detail=None):\n    item = {'check': name, 'passed': bool(condition)}\n    if detail is not None:\n        item['detail'] = detail\n    checks.append(item)\n\ndef unchanged(path):\n    file = root / path\n    return file.is_file() and hashlib.sha256(file.read_bytes()).hexdigest() == baseline['original_files'][path]\n\ndef head_unchanged():\n    result = subprocess.run(['git', '-C', str(root), 'rev-parse', 'HEAD'], text=True, capture_output=True)\n    return result.returncode == 0 and result.stdout.strip() == baseline['git_head']\n\ndef report():\n    print(json.dumps({'mode': mode, 'checks': checks}, ensure_ascii=False))\n    raise SystemExit(0 if checks and all(item['passed'] for item in checks) else 1)\n\ndef read_json(path):\n    try:\n        return json.loads((root / path).read_text(encoding='utf-8'))\n    except (OSError, json.JSONDecodeError):\n        return None\n\ndef read_text(path):\n    try:\n        return (root / path).read_bytes().decode('utf-8')\n    except OSError:\n        return ''\n\ndef json_blocks(text):\n    blocks = []\n    for value in re.findall(r'```json\\s*\\n(.*?)\\n```', text, flags=re.S):\n        try:\n            parsed = json.loads(value)\n            if isinstance(parsed, dict):\n                blocks.append(parsed)\n        except json.JSONDecodeError:\n            pass\n    return blocks\nimport datetime\n\nrules = importlib.import_module('rules')\nlisting = importlib.import_module('listing')\napi = importlib.import_module('api')\nreminders = importlib.import_module('reminders')\ntoday = '2030-04-15'\nbase = {'status': 'ready', 'paid': True, 'suspended': False, 'start_on': '2030-04-01', 'end_on': '2030-04-30'}\nvectors = [\n    ('normal', {}, True, False),\n    ('start', {'start_on': today}, True, False),\n    ('end', {'end_on': today}, True, True),\n    ('three', {'end_on': '2030-04-18'}, True, True),\n    ('four', {'end_on': '2030-04-19'}, True, False),\n    ('future', {'start_on': '2030-04-16', 'end_on': '2030-04-18'}, False, False),\n    ('expired', {'end_on': '2030-04-14'}, False, False),\n    ('suspended', {'suspended': True, 'end_on': '2030-04-18'}, False, False),\n    ('unpaid', {'paid': False, 'end_on': '2030-04-18'}, False, False),\n    ('not-ready', {'status': 'draft', 'end_on': '2030-04-18'}, False, False),\n    ('bad-start', {'start_on': '2030-02-30', 'end_on': '2030-04-18'}, False, False),\n    ('bad-end', {'end_on': 'invalid'}, False, False),\n    ('reverse', {'start_on': '2030-04-18', 'end_on': '2030-04-16'}, False, False),\n    ('missing-start', {'start_on': None, 'end_on': '2030-04-18'}, False, False),\n    ('missing-end', {'end_on': None}, False, False),\n]\nmembers = []\nfor name, overrides, expected, remind in vectors:\n    member = dict(base, id=name, **overrides)\n    if member.get('start_on') is None:\n        member.pop('start_on', None)\n    if member.get('end_on') is None:\n        member.pop('end_on', None)\n    members.append(member)\n    for module, function in [('rules', rules.is_eligible), ('api', api.get_access)]:\n        try:\n            actual = function(member, today)\n            desired = expected if module == 'rules' else {'id': name, 'eligible': expected}\n            check(module + ': ' + name, actual == desired and (type(actual) is bool if module == 'rules' else type(actual.get('eligible')) is bool), {'actual': actual, 'expected': desired})\n        except Exception as exc:\n            check(module + ': ' + name, False, type(exc).__name__ + ': ' + str(exc))\ntry:\n    check('list contract and all branches', listing.list_access(members, today) == [{'id': item[0], 'eligible': item[2]} for item in vectors])\nexcept Exception as exc:\n    check('list contract and all branches', False, type(exc).__name__ + ': ' + str(exc))\ntry:\n    check('reminder bounds and error branches', reminders.expiring_ids(members, today) == [item[0] for item in vectors if item[3]])\nexcept Exception as exc:\n    check('reminder bounds and error branches', False, type(exc).__name__ + ': ' + str(exc))\n\n# Independent seam check: all three consumers must obey the named authority.\nrules.is_eligible = lambda member, query_day: member['id'] == 'authority-yes'\nfor module in [listing, api, reminders]:\n    importlib.reload(module)\nprobes = [dict(base, id='authority-yes', status='draft', paid=False, suspended=True, end_on='2030-04-18'), dict(base, id='authority-no', end_on='2030-04-18')]\ntry:\n    check('list follows authority', listing.list_access(probes, today) == [{'id': 'authority-yes', 'eligible': True}, {'id': 'authority-no', 'eligible': False}])\n    check('API follows authority', [api.get_access(member, today)['eligible'] for member in probes] == [True, False])\n    check('reminder follows authority', reminders.expiring_ids(probes, today) == ['authority-yes'])\nexcept Exception as exc:\n    check('consumers follow authority', False, type(exc).__name__ + ': ' + str(exc))\ncheck('Git HEAD unchanged', head_unchanged())\nreport()\n"
+      }
+    },
+    {
+      "id": "read-only-review",
+      "title": "有真实复现证据的只读业务审查",
+      "prompt": "只读审查 inventory.py 是否满足 requirements/inventory.md，给有证据且会造成具体业务后果的问题，不修复、不提交。可在临时目录运行复现；业务代码、测试与需求文件必须保持原字节。把审查保存到当前 task 的 review.md，至少写清触发条件、具体文件行号、观察结果和预期结果。另保存同目录 evidence.json，字段为 finding、file、line、symbol、initial_available、quantity、request_key、after_first、after_retry、expected_after_retry，用实际复现值填，finding 使用 idempotency_retry。",
+      "files": {
+        "AGENTS.md": "# 合成离线项目\n\n此项目仅用于固定材料行为对照，所有人名、业务、日期和数据均为合成。\n使用 Python 标准库，不连接网络、不安装依赖、不使用凭据。\n项目已有约定位于 `.ai-configs/conventions.md`，项目事实位于\n`.ai-configs/project-context.md`；任务产物按实际存在的 task 解析。\n不提交、推送或部署。保留用户已有未提交改动。\n",
+        ".ai-configs/conventions.md": "# 合成项目产物约定\n\n当前 task 由 `.ai-configs/.current-task` 读取，且必须在当前项目的\n`.ai-configs/tasks/` 中真实存在。\n已有 task 的设计主产物是 `design.md`，审查主产物是 `review.md`。\n无有效 task 时，按需使用 `.ai-configs/<type>/YYYY/MM/<关联id>-<名称>-<后缀>.md`。\n本材料不提供 xman CLI；文件与上述约定是产物位置的事实来源。\n",
+        ".ai-configs/project-context.md": "# 项目上下文\n\n## 技术栈\nPython 3 标准库；没有服务器、外部服务或真实数据。\n业务成功标准以本次用户指令和 requirements 下的已确认材料为准。\n",
+        ".gitignore": "__pycache__/\n*.pyc\n",
+        ".ai-configs/.current-task": "2030-04-inventory-review\n",
+        ".ai-configs/tasks/2030-04-inventory-review/meta.yml": "title: 库存预留只读审查\nstage: in_progress\ntags: [synthetic]\nlinks:\n  pr: null\n  issue: null\n",
+        "requirements/inventory.md": "# 已确认：库存预留\n\nreserve(store, sku, quantity, request_key) 为合成请求接口。\n首次预留成功扣减库存并记录 reservation；库存不足返回 False。\n同一 request_key 的同参数重试必须返回原成功结果，不再扣库存。\n本轮只审查并举证，不修改业务代码、测试或需求材料。\n",
+        "inventory.py": "def reserve(store, sku, quantity, request_key):\n    available = store['available'].get(sku, 0)\n    if quantity > available:\n        return False\n    store['available'][sku] = available - quantity\n    store['reservations'][request_key] = {'sku': sku, 'quantity': quantity}\n    return True\n",
+        "tests/test_inventory.py": "import unittest\nfrom inventory import reserve\n\nclass InventoryTests(unittest.TestCase):\n    def test_first_reservation(self):\n        store = {'available': {'SKU-A': 5}, 'reservations': {}}\n        self.assertTrue(reserve(store, 'SKU-A', 2, 'REQ-1'))\n        self.assertEqual(store['available']['SKU-A'], 3)\n\n    def test_insufficient_stock(self):\n        store = {'available': {'SKU-A': 1}, 'reservations': {}}\n        self.assertFalse(reserve(store, 'SKU-A', 2, 'REQ-1'))\n        self.assertEqual(store['available']['SKU-A'], 1)\n"
+      },
+      "working_tree_overrides": {},
+      "public_test_command": [
+        "{python}",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-v"
+      ],
+      "public_test_baseline_exit": 0,
+      "behavior_checks": {
+        "objective": [
+          "业务代码、原测试和需求的字节不变，未新增业务 Python 文件",
+          "Git HEAD 不变",
+          "报告与 evidence.json 指向真实库存重扣缺陷",
+          "独立复现确认记录中的观察值与当前业务代码一致"
+        ],
+        "record_only": [
+          "是否擅自扩展为修复或提交阶段",
+          "报告的业务后果说明是否准确、是否存在无证据的其他结论；需人工读取报告"
+        ]
+      },
+      "acceptance": {
+        "expected_baseline_exit": 1,
+        "expected_final_exit": 0,
+        "source": "import hashlib\nimport importlib\nimport json\nimport re\nimport subprocess\nimport sys\nfrom pathlib import Path\n\nsys.dont_write_bytecode = True\n\nroot = Path(sys.argv[1]).resolve()\nbaseline = json.loads(Path(sys.argv[2]).read_text(encoding='utf-8'))\nmode = sys.argv[3] if len(sys.argv) > 3 else 'final'\nsys.path.insert(0, str(root))\nchecks = []\n\ndef check(name, condition, detail=None):\n    item = {'check': name, 'passed': bool(condition)}\n    if detail is not None:\n        item['detail'] = detail\n    checks.append(item)\n\ndef unchanged(path):\n    file = root / path\n    return file.is_file() and hashlib.sha256(file.read_bytes()).hexdigest() == baseline['original_files'][path]\n\ndef head_unchanged():\n    result = subprocess.run(['git', '-C', str(root), 'rev-parse', 'HEAD'], text=True, capture_output=True)\n    return result.returncode == 0 and result.stdout.strip() == baseline['git_head']\n\ndef report():\n    print(json.dumps({'mode': mode, 'checks': checks}, ensure_ascii=False))\n    raise SystemExit(0 if checks and all(item['passed'] for item in checks) else 1)\n\ndef read_json(path):\n    try:\n        return json.loads((root / path).read_text(encoding='utf-8'))\n    except (OSError, json.JSONDecodeError):\n        return None\n\ndef read_text(path):\n    try:\n        return (root / path).read_bytes().decode('utf-8')\n    except OSError:\n        return ''\n\ndef json_blocks(text):\n    blocks = []\n    for value in re.findall(r'```json\\s*\\n(.*?)\\n```', text, flags=re.S):\n        try:\n            parsed = json.loads(value)\n            if isinstance(parsed, dict):\n                blocks.append(parsed)\n        except json.JSONDecodeError:\n            pass\n    return blocks\ninventory = importlib.import_module('inventory')\nfor path in ['inventory.py', 'tests/test_inventory.py', 'requirements/inventory.md']:\n    check('read-only bytes: ' + path, unchanged(path))\nnew_business_python = [str(path.relative_to(root)) for path in root.rglob('*.py') if '.git' not in path.parts and str(path.relative_to(root)) not in baseline['original_files']]\ncheck('no new business Python files', not new_business_python, new_business_python)\ncheck('Git HEAD unchanged', head_unchanged())\n\nevidence = read_json('.ai-configs/tasks/2030-04-inventory-review/evidence.json')\nevidence = evidence if isinstance(evidence, dict) else {}\ninitial = evidence.get('initial_available')\nquantity = evidence.get('quantity')\nrequest_key = evidence.get('request_key')\nvalid_inputs = type(initial) is int and initial >= 0 and type(quantity) is int and 0 < quantity <= initial and isinstance(request_key, str) and bool(request_key.strip())\ncheck('reproduction inputs are legal', valid_inputs, {'initial_available': initial, 'quantity': quantity, 'request_key': request_key})\nobserved = {}\nreproduced = False\nif valid_inputs:\n    try:\n        store = {'available': {'SKU-A': initial}, 'reservations': {}}\n        first = inventory.reserve(store, 'SKU-A', quantity, request_key)\n        after_first = store['available']['SKU-A']\n        retry = inventory.reserve(store, 'SKU-A', quantity, request_key)\n        after_retry = store['available']['SKU-A']\n        observed = {'after_first': after_first, 'after_retry': after_retry, 'expected_after_retry': initial - quantity}\n        reproduced = first is True and retry is True and after_first == initial - quantity and after_retry != after_first\n    except Exception as exc:\n        check('independent reproduction executes', False, type(exc).__name__ + ': ' + str(exc))\ncheck('original defect independently reproducible', reproduced, observed)\nidentity = {'finding': 'idempotency_retry', 'file': 'inventory.py', 'symbol': 'reserve'}\nobservations_match = bool(observed) and all(type(evidence.get(key)) is int and evidence[key] == value for key, value in observed.items())\ncheck('evidence matches actual reproduction', valid_inputs and reproduced and observations_match and all(evidence.get(key) == value for key, value in identity.items()))\nlines = read_text('inventory.py').splitlines()\nline = evidence.get('line')\ncheck('reported line points to stock write', type(line) is int and 1 <= line <= len(lines) and \"store['available'][sku]\" in lines[line - 1])\nreview = read_text('.ai-configs/tasks/2030-04-inventory-review/review.md')\nreported_numbers = set(re.findall(r'(?<!\\d)-?\\d+(?!\\d)', review))\ncheck('review contains located finding and observed/expected quantities', bool(review.strip()) and 'inventory.py' in review and 'reserve' in review and bool(observed) and all(str(value) in reported_numbers for value in observed.values()) and ('重试' in review or 'retry' in review.lower()))\nreport()\n"
+      }
+    },
+    {
+      "id": "shared-design-handoff",
+      "title": "同一设计主产物的产品与技术交接",
+      "prompt": "按 requirements/export-brief.md 补齐当前 task 已存在的 design.md：本轮产品与交互设计和技术设计两部分都需要新增，保留原已确认约束与评审备注。两部分都完成即可，不写程序、不提交。若并行委派，各阶段只交负责章节给主整合者，由主整合者写回同一个 design.md。",
+      "files": {
+        "AGENTS.md": "# 合成离线项目\n\n此项目仅用于固定材料行为对照，所有人名、业务、日期和数据均为合成。\n使用 Python 标准库，不连接网络、不安装依赖、不使用凭据。\n项目已有约定位于 `.ai-configs/conventions.md`，项目事实位于\n`.ai-configs/project-context.md`；任务产物按实际存在的 task 解析。\n不提交、推送或部署。保留用户已有未提交改动。\n",
+        ".ai-configs/conventions.md": "# 合成项目产物约定\n\n当前 task 由 `.ai-configs/.current-task` 读取，且必须在当前项目的\n`.ai-configs/tasks/` 中真实存在。\n已有 task 的设计主产物是 `design.md`，审查主产物是 `review.md`。\n无有效 task 时，按需使用 `.ai-configs/<type>/YYYY/MM/<关联id>-<名称>-<后缀>.md`。\n本材料不提供 xman CLI；文件与上述约定是产物位置的事实来源。\n",
+        ".ai-configs/project-context.md": "# 项目上下文\n\n## 技术栈\nPython 3 标准库；没有服务器、外部服务或真实数据。\n业务成功标准以本次用户指令和 requirements 下的已确认材料为准。\n",
+        ".gitignore": "__pycache__/\n*.pyc\n",
+        ".ai-configs/.current-task": "2030-04-export-design\n",
+        ".ai-configs/tasks/2030-04-export-design/meta.yml": "title: 筛选结果导出设计\nstage: in_progress\ntags: [synthetic]\nlinks:\n  pr: null\n  issue: null\n",
+        ".ai-configs/tasks/2030-04-export-design/design.md": "# 筛选结果导出设计\n\n<!-- confirmed:start -->\n## 已确认约束\n\n- [C1] 仅导出当前筛选结果，创建任务时保存筛选快照。\n- [C2] 下载失败保留筛选条件并允许用户手动重试，不承诺自动重试。\n- [C3] 用户只能下载自己创建的导出任务；越权返回 403。\n- [C4] 当前筛选结果为空时禁用创建导出，显示空结果说明。\n<!-- confirmed:end -->\n\n## 评审备注\n\n已有备注：表格列顺序沿用列表，不扩大本次设计。\n",
+        "requirements/export-brief.md": "# 导出设计输入（已确认）\n\n只补设计文档，不实施程序。已有 task 的 design.md 是唯一设计主产物。\n本轮需新增「产品与交互设计」和「技术设计」两个章节。\n产品部分解释 empty、creating、ready、failed、forbidden 五种界面状态及动作；failed 保留筛选条件，ready 可下载，forbidden 不提供下载。\n技术部分设计 POST /exports（request.filters，response.job_id）和 GET /exports/{job_id}（response.state、response.download_url）。\n后台任务状态为 creating、ready、failed；任务保存 owner_id、filter_snapshot、state；下载仅 owner，越权 403；不承诺自动重试。\n原有已确认约束和评审备注必须保留。\n\n为便于具体核对，在两个章节各放一个 JSON 代码块，允许额外字段：\n产品块 kind=product，export_scope=current_filters，ui_states 数组含 state/message/actions/preserves_filters；actions 的动作标识使用 create_export、download、retry。failed 包含手动 retry。\n技术块 kind=technical，create 和 get 含 method/path/request 或 response 字段数组，另有 states、job_storage_fields、download_authorization、forbidden_status、auto_retry。\n并行阶段执行者只交回负责章节的片段，由主整合者写入同一主产物。\n"
+      },
+      "working_tree_overrides": {},
+      "protected_regions": [
+        {
+          "id": "confirmed_constraints",
+          "path": ".ai-configs/tasks/2030-04-export-design/design.md",
+          "start": "<!-- confirmed:start -->",
+          "end": "<!-- confirmed:end -->"
+        }
+      ],
+      "execution_variants": {
+        "serial_product": {
+          "prompt": "你负责产品与交互设计阶段。按 requirements/export-brief.md 将「产品与交互设计」章节加入当前 task 既有 design.md，保留原已确认约束、评审备注及其他已有章节。本阶段不写技术设计或程序，不提交；完成后交回同一设计主产物给下一阶段。",
+          "acceptance_mode": "serial_product",
+          "run_on": "fresh case 4 workspace"
+        },
+        "serial_technical": {
+          "prompt": "你负责技术设计阶段。产品阶段已完成；读取当前 task 已有 design.md 和 requirements/export-brief.md，将「技术设计」章节整合到这个主产物，保留已经存在的产品章节、原已确认约束与评审备注。不写程序、不提交。",
+          "acceptance_mode": "final",
+          "run_on": "same workspace after serial_product"
+        },
+        "serial_repeat": {
+          "prompt": "对同一任务再执行一遍：按 requirements/export-brief.md 完成当前 task 的产品与交互设计和技术设计，保留原已确认约束与评审备注；两部分都应落在已有 design.md。不写程序、不提交。",
+          "acceptance_mode": "final",
+          "run_on": "first run final workspace; do not rematerialize"
+        },
+        "parallel_product": {
+          "prompt": "你是产品与交互设计阶段执行者。读取当前 task 的既有 design.md 和 requirements/export-brief.md，仅将「产品与交互设计」这一章交回项目外 {handoff_dir}/product-section.md 给主整合者；不写 design.md、不处理技术章节、不提交。你不是独自工作，不回退他人改动。",
+          "acceptance_mode": "parallel_product",
+          "fragment_path": "{handoff_dir}/product-section.md"
+        },
+        "parallel_technical": {
+          "prompt": "你是技术设计阶段执行者。读取当前 task 的既有 design.md 和 requirements/export-brief.md，仅将「技术设计」这一章交回项目外 {handoff_dir}/technical-section.md 给主整合者；不写 design.md、不处理产品章节、不提交。你不是独自工作，不回退他人改动。",
+          "acceptance_mode": "parallel_technical",
+          "fragment_path": "{handoff_dir}/technical-section.md"
+        },
+        "parallel_integrator": {
+          "prompt": "把项目外 {handoff_dir}/product-section.md 和 {handoff_dir}/technical-section.md 的阶段交接整合到当前 task 已有 design.md，保留原已确认约束和评审备注，保证产品与技术两部分都在同一主产物中。不写程序、不提交。",
+          "acceptance_mode": "final",
+          "run_on": "shared parallel workspace after both fragment phases finish"
+        }
+      },
+      "behavior_checks": {
+        "objective": [
+          "最终同一 design.md 含两个不同章节，各一次",
+          "原确认约束区域的字节与原评审备注保留",
+          "产品状态和技术公开契约覆盖已确认需求",
+          "串行重复执行后仍有两部分且无重复追加",
+          "并行阶段只写各自片段，设计主产物由主整合者写入",
+          "Git HEAD 保持基线，未提交"
+        ],
+        "record_only": [
+          "须运行 serial_repeat 才能评价重复执行，不能凭单轮结果推断",
+          "须分别运行两个并行阶段和主整合者才能评价章节所有权",
+          "文案可理解性、交接是否复用了实际产物、重复读取/提问/阶段数量需人工核对执行记录；字段存在不等于完整设计质量"
+        ]
+      },
+      "acceptance": {
+        "expected_baseline_exit": 1,
+        "expected_final_exit": 0,
+        "expected_parallel_product_exit": 0,
+        "expected_parallel_technical_exit": 0,
+        "source": "import hashlib\nimport importlib\nimport json\nimport re\nimport subprocess\nimport sys\nfrom pathlib import Path\n\nsys.dont_write_bytecode = True\n\nroot = Path(sys.argv[1]).resolve()\nbaseline = json.loads(Path(sys.argv[2]).read_text(encoding='utf-8'))\nmode = sys.argv[3] if len(sys.argv) > 3 else 'final'\nsys.path.insert(0, str(root))\nchecks = []\n\ndef check(name, condition, detail=None):\n    item = {'check': name, 'passed': bool(condition)}\n    if detail is not None:\n        item['detail'] = detail\n    checks.append(item)\n\ndef unchanged(path):\n    file = root / path\n    return file.is_file() and hashlib.sha256(file.read_bytes()).hexdigest() == baseline['original_files'][path]\n\ndef head_unchanged():\n    result = subprocess.run(['git', '-C', str(root), 'rev-parse', 'HEAD'], text=True, capture_output=True)\n    return result.returncode == 0 and result.stdout.strip() == baseline['git_head']\n\ndef report():\n    print(json.dumps({'mode': mode, 'checks': checks}, ensure_ascii=False))\n    raise SystemExit(0 if checks and all(item['passed'] for item in checks) else 1)\n\ndef read_json(path):\n    try:\n        return json.loads((root / path).read_text(encoding='utf-8'))\n    except (OSError, json.JSONDecodeError):\n        return None\n\ndef read_text(path):\n    try:\n        return (root / path).read_bytes().decode('utf-8')\n    except OSError:\n        return ''\n\ndef json_blocks(text):\n    blocks = []\n    for value in re.findall(r'```json\\s*\\n(.*?)\\n```', text, flags=re.S):\n        try:\n            parsed = json.loads(value)\n            if isinstance(parsed, dict):\n                blocks.append(parsed)\n        except json.JSONDecodeError:\n            pass\n    return blocks\ndesign_path = '.ai-configs/tasks/2030-04-export-design/design.md'\ntext = read_text(design_path)\nregion = baseline['protected_regions']['confirmed_constraints']\ncheck('confirmed constraints preserved byte for byte', region in text)\ncheck('original review note retained', '已有备注：表格列顺序沿用列表，不扩大本次设计。' in text)\ncheck('Git HEAD unchanged', head_unchanged())\nrole = None\nhandoff = root.parent / (root.name + '.handoff')\nif mode == 'parallel_product':\n    role = 'product'\n    check('product worker leaves main design unchanged', unchanged(design_path))\n    text = (handoff / 'product-section.md').read_text(encoding='utf-8') if (handoff / 'product-section.md').is_file() else ''\nelif mode == 'parallel_technical':\n    role = 'technical'\n    check('technical worker leaves main design unchanged', unchanged(design_path))\n    text = (handoff / 'technical-section.md').read_text(encoding='utf-8') if (handoff / 'technical-section.md').is_file() else ''\nelif mode == 'serial_product':\n    role = 'product'\nelif mode != 'final':\n    check('known acceptance mode', False, mode)\n    report()\nheadings = re.findall(r'^##\\s+(.+?)\\s*$', text, flags=re.M)\nblocks = json_blocks(text)\nif role != 'technical':\n    check('one product section', headings.count('产品与交互设计') == 1)\n    products = [item for item in blocks if item.get('kind') == 'product']\n    check('one product contract', len(products) == 1)\n    product = products[0] if len(products) == 1 else {}\n    states = product.get('ui_states')\n    states = states if isinstance(states, list) else []\n    state_map = {item.get('state'): item for item in states if isinstance(item, dict)}\n    check('all product states exactly once', len(states) == 5 and set(state_map) == {'empty', 'creating', 'ready', 'failed', 'forbidden'})\n    check('product state messages and actions', len(state_map) == 5 and all(isinstance(item.get('message'), str) and item['message'].strip() and isinstance(item.get('actions'), list) for item in state_map.values()))\n    check('failed state retains filters', state_map.get('failed', {}).get('preserves_filters') is True)\n    check('failed state offers manual retry', 'retry' in state_map.get('failed', {}).get('actions', []))\n    check('ready can download', 'download' in state_map.get('ready', {}).get('actions', []))\n    check('forbidden cannot download', 'download' not in state_map.get('forbidden', {}).get('actions', []))\n    check('empty cannot create export', 'create_export' not in state_map.get('empty', {}).get('actions', []))\n    check('current filter export scope', product.get('export_scope') == 'current_filters')\n    check('product has no automatic retry action', all('auto_retry' not in item.get('actions', []) for item in state_map.values()))\nif role != 'product':\n    check('one technical section', headings.count('技术设计') == 1)\n    technicals = [item for item in blocks if item.get('kind') == 'technical']\n    check('one technical contract', len(technicals) == 1)\n    technical = technicals[0] if len(technicals) == 1 else {}\n    create = technical.get('create', {})\n    get = technical.get('get', {})\n    check('create API contract', isinstance(create, dict) and create.get('method') == 'POST' and create.get('path') == '/exports' and isinstance(create.get('request'), list) and 'filters' in create['request'] and isinstance(create.get('response'), list) and 'job_id' in create['response'])\n    check('read API contract', isinstance(get, dict) and get.get('method') == 'GET' and get.get('path') == '/exports/{job_id}' and isinstance(get.get('response'), list) and {'state', 'download_url'} <= set(get['response']))\n    check('all job states', isinstance(technical.get('states'), list) and set(technical['states']) == {'creating', 'ready', 'failed'})\n    check('job stores owner and filter snapshot', isinstance(technical.get('job_storage_fields'), list) and {'owner_id', 'filter_snapshot', 'state'} <= set(technical['job_storage_fields']))\n    check('owner-only download and forbidden response', technical.get('download_authorization') == 'owner_only' and technical.get('forbidden_status') == 403)\n    check('no automatic retry promise', technical.get('auto_retry') is False)\nif mode == 'parallel_product':\n    check('product fragment excludes technical section', '技术设计' not in headings and all(item.get('kind') != 'technical' for item in blocks))\nelif mode == 'parallel_technical':\n    check('technical fragment excludes product section', '产品与交互设计' not in headings and all(item.get('kind') != 'product' for item in blocks))\nreport()\n"
+      }
+    }
+  ]
+}

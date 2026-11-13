@@ -1,0 +1,5 @@
+interface:
+  display_name: "服务器排障"
+  short_description: "安全登录 Linux 服务器做有限排障，确认后执行单一受控修复"
+policy:
+  allow_implicit_invocation: false

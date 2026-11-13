@@ -1,0 +1,6 @@
+interface:
+  display_name: "Git Commit 智能提交"
+  short_description: "分析改动，生成 Conventional Commits 提交信息"
+  default_prompt: "Use $git-commit to analyze current changes and generate a commit message."
+policy:
+  allow_implicit_invocation: false

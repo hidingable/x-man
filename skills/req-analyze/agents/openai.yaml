@@ -1,0 +1,5 @@
+interface:
+  display_name: "需求分析"
+  short_description: "分析一个需求或问题：追到真实痛点和根本原因，界定范围、影响和完成标准"
+policy:
+  allow_implicit_invocation: false

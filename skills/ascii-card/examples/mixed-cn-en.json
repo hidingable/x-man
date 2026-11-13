@@ -1,0 +1,11 @@
+{
+  "width": "auto",
+  "rows": [
+    { "type": "text", "text": "Employee Onboarding / 员工入职", "align": "center" },
+    { "type": "blank" },
+    { "type": "row", "text": "身份证 ID Card (front)", "buttons": ["Upload 上传"] },
+    { "type": "row", "text": "学历证书 Diploma", "buttons": ["查看", "Re-upload"] },
+    { "type": "divider" },
+    { "type": "buttons", "buttons": ["Cancel 取消", "保存", "Submit 提交"], "align": "even" }
+  ]
+}

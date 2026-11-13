@@ -1,0 +1,53 @@
+{
+  "skill_name": "claude-api",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "用 Anthropic Python SDK 修复 services/claude_chat.py 的流式工具调用。",
+      "expected_output": "应用 claude-api，读取 Python 对应资料并修改目标调用链，不先扫描全仓供应商标记。",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "帮我设计一个 RAG 知识问答 agent，供应商还没选。",
+      "expected_output": "不自动调用 claude-api；保留供应商中立，不套用 Claude 模型、SDK 或流式默认值。",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "用现有 OpenAI SDK 给摘要接口加重试，保持供应商不变。",
+      "expected_output": "不调用 claude-api，不加入 Anthropic SDK，不询问是否改用 Claude。",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "仓库同时有 OpenAI 和 Anthropic 接口。只修复 services/claude_chat.py 的 Claude 请求超时。",
+      "expected_output": "应用 claude-api；根据目标文件及调用链处理 Claude 请求，不因其他文件的 OpenAI 导入而跳过或要求切换供应商。",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "把 services/chat.py 从 OpenAI 迁移到 Claude，范围已确认只有这个文件。",
+      "expected_output": "应用 claude-api，按已授权文件范围迁移，不重复询问是否切换供应商，保留其他供应商文件。",
+      "files": []
+    },
+    {
+      "id": 6,
+      "prompt": "比较 Claude 和 GPT 的 API 价格、上下文限制及缓存能力。",
+      "expected_output": "为 Claude 部分调用 claude-api，核实相关资料；GPT 出现不覆盖 Claude 的触发。",
+      "files": []
+    },
+    {
+      "id": 7,
+      "prompt": "帮我给 Claude Code 配置编辑器快捷键。",
+      "expected_output": "不因为 Claude Code 名称触发 claude-api；按编辑器配置任务处理。",
+      "files": []
+    },
+    {
+      "id": 8,
+      "prompt": "只调整 provider-neutral chat 接口的参数校验，Claude 与 OpenAI 实现都保持不变。",
+      "expected_output": "不将 Anthropic SDK 调用插入公共接口；保留供应商中立及现有实现。",
+      "files": []
+    }
+  ]
+}

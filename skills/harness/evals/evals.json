@@ -1,0 +1,23 @@
+{
+  "skill_name": "harness",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "验证表单修改。项目已有浏览器测试工具，可以等待稳定、检查控制台与失败请求并截图；未安装 web-access。",
+      "expected_output": "使用项目已有工具验证真实路径并提供证据，不因缺少 web-access 阻塞，不强制切换到 CDP Proxy。",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "使用 CDP Proxy 验证页面。web-access 安装在 plugin 的带空格目录，当前工作目录是业务项目，没有 skills/web-access 目录。",
+      "expected_output": "从实际安装的 web-access/SKILL.md 解析 WEB_ACCESS_DIR，确认 scripts/xman-verify.mjs 存在，使用加引号的绝对路径运行探针。",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "宿主浏览器能截图和检查页面内容，但无法读取控制台或失败请求。截图中主流程表现正常。",
+      "expected_output": "记录已经观察到的主流程证据，并明确控制台和失败请求未覆盖；不将缺少观测声明为没有错误或全面通过。",
+      "files": []
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+interface:
+  display_name: "服务器部署"
+  short_description: "把项目部署到远程服务器：环境探测、服务部署、域名配置和部署脚本"
+policy:
+  allow_implicit_invocation: false

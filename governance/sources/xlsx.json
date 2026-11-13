@@ -1,0 +1,14 @@
+{
+  "key": "xlsx",
+  "kind": "git",
+  "repo": "https://github.com/anthropics/skills.git",
+  "ref": "main",
+  "mappings": [
+    {
+      "type": "dir",
+      "from": "skills/xlsx",
+      "to": "skills/xlsx",
+      "optional": false
+    }
+  ]
+}

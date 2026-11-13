@@ -1,0 +1,40 @@
+.claude
+.codex
+.cursor
+.gemini
+.obsidian
+
+.DS_Store
+**/.DS_Store
+
+# Editor
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+
+# Python 字节码缓存
+__pycache__/
+*.pyc
+
+# AI skill 项目产物（不入库）。写成 .ai-configs/* 而不是 .ai-configs/：
+# 父目录整个被忽略时 git 不会下降进去，下面那条 ! 规则就永远不生效。
+.ai-configs/*
+# Spec 索引是规范事实源，必须入库——不提交的话同事和 CI 读不到，等于没有 Spec
+!.ai-configs/specs/
+
+# llm-commit 外部模型私有配置（模板见同目录 llm-commit.env.example）
+skills/git-commit/scripts/llm-commit.env
+
+# plugin 构建产物（18MB 真身拷贝，不入库）
+dist/
+
+# 发行版仓库的本机路径，用于跨仓流程骨架比对（本机配置，不入库）
+governance/.release-repo
+
+# 行为 eval 的运行结果，本地查看用
+eval-results/

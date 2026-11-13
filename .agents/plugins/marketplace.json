@@ -1,0 +1,20 @@
+{
+  "name": "x-mansion-lab",
+  "interface": {
+    "displayName": "x-mansion"
+  },
+  "plugins": [
+    {
+      "name": "x-mansion",
+      "source": {
+        "source": "local",
+        "path": "./dist/plugin/x-mansion"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}
